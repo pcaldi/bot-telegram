@@ -11,15 +11,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: |
+          pip install playwright
+          playwright install chromium
 
       - name: Run scrapers
         env:

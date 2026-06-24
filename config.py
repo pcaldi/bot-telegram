@@ -1,7 +1,9 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CANAL_ID = int(os.getenv("CANAL_ID", "-1004330223980"))
