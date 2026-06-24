@@ -6,104 +6,150 @@ except ImportError:
     pass
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CANAL_ID = int(os.getenv("CANAL_ID", "-1004330223980"))
-GRUPO_ID = int(os.getenv("GRUPO_ID", "-1004358265563"))
+if not TELEGRAM_BOT_TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN não configurado. Adicione no .env ou nos secrets do GitHub Actions.")
+
+CANAL_ID = int(os.environ["CANAL_ID"])
+GRUPO_ID = int(os.environ["GRUPO_ID"])
 
 PRODUTOS_MONITORADOS = [
+    # ==================== TÊNIS ====================
     {
         "id": "tenis_nike_air_max",
         "nome": "Tênis Nike Air Max",
-        "palavras_chave": ["tenis nike air max", "nike air max sc"],
+        "palavras_chave": ["nike air max"],
         "preco_max": 500.0,
-        "preco_alvo": 300.0,
         "categoria": "Tênis"
     },
     {
         "id": "tenis_nike_downshifter",
         "nome": "Tênis Nike Downshifter",
-        "palavras_chave": ["tenis nike downshifter"],
+        "palavras_chave": ["nike downshifter"],
         "preco_max": 400.0,
-        "preco_alvo": 250.0,
         "categoria": "Tênis"
     },
     {
         "id": "tenis_adidas_coreracer",
         "nome": "Tênis Adidas Coreracer",
-        "palavras_chave": ["tenis adidas coreracer", "adidas coreracer"],
+        "palavras_chave": ["adidas coreracer"],
         "preco_max": 400.0,
-        "preco_alvo": 250.0,
         "categoria": "Tênis"
     },
     {
         "id": "tenis_olympikus",
-        "nome": "Tênis Olympikus (geral)",
+        "nome": "Tênis Olympikus",
         "palavras_chave": ["tenis olympikus"],
         "preco_max": 300.0,
-        "preco_alvo": 180.0,
         "categoria": "Tênis"
     },
     {
-        "id": "whey_growth",
-        "nome": "Whey Protein Growth",
-        "palavras_chave": ["whey protein growth", "growth whey"],
-        "preco_max": 150.0,
-        "preco_alvo": 100.0,
-        "categoria": "Suplementos"
+        "id": "tenis_asics_superblast3",
+        "nome": "Tênis ASICS Superblast 3",
+        "palavras_chave": ["asics superblast"],
+        "preco_max": 1699.0,
+        "categoria": "Tênis"
     },
     {
-        "id": "whey_integralmedica",
-        "nome": "Whey Protein Integralmedica",
-        "palavras_chave": ["whey integralmedica", "whey protein integralmedica"],
-        "preco_max": 150.0,
-        "preco_alvo": 90.0,
+        "id": "tenis_asics_superblast2",
+        "nome": "Tênis ASICS Superblast 2",
+        "palavras_chave": ["asics superblast 2"],
+        "preco_max": 1699.0,
+        "categoria": "Tênis"
+    },
+    {
+        "id": "tenis_adidas_adizero",
+        "nome": "Tênis Adidas Adizero",
+        "palavras_chave": ["adidas adizero"],
+        "preco_max": 1079.0,
+        "categoria": "Tênis"
+    },
+
+    # ==================== SUPLEMENTOS ====================
+    {
+        "id": "whey_protein",
+        "nome": "Whey Protein",
+        "palavras_chave": ["whey protein"],
+        "preco_max": 200.0,
         "categoria": "Suplementos"
     },
     {
         "id": "creatina",
-        "nome": "Creatina (Growth/Integralmedica)",
-        "palavras_chave": ["creatina growth", "creatin monohidratada"],
+        "nome": "Creatina Monohidratada",
+        "palavras_chave": ["creatina"],
         "preco_max": 120.0,
-        "preco_alvo": 70.0,
         "categoria": "Suplementos"
     },
     {
+        "id": "whey_max",
+        "nome": "Whey Max",
+        "palavras_chave": ["whey max"],
+        "preco_max": 150.0,
+        "categoria": "Suplementos"
+    },
+
+    # ==================== ELETRÔNICOS ====================
+    {
         "id": "fone_jbl",
         "nome": "Fone JBL Bluetooth",
-        "palavras_chave": ["fone jbl bluetooth", "jbl tune"],
+        "palavras_chave": ["fone jbl"],
         "preco_max": 300.0,
-        "preco_alvo": 150.0,
         "categoria": "Eletrônicos"
     },
     {
         "id": "fone_soundcore",
         "nome": "Fone Soundcore Anker",
-        "palavras_chave": ["soundcore anker", "fone anker"],
+        "palavras_chave": ["fone anker"],
         "preco_max": 300.0,
-        "preco_alvo": 150.0,
         "categoria": "Eletrônicos"
     },
     {
         "id": "mouse_gamer",
         "nome": "Mouse Gamer",
-        "palavras_chave": ["mouse gamer sem fio", "mouse redragon"],
+        "palavras_chave": ["mouse gamer"],
         "preco_max": 200.0,
-        "preco_alvo": 100.0,
         "categoria": "Eletrônicos"
     },
     {
         "id": "ssd",
-        "nome": "SSD 480GB+",
-        "palavras_chave": ["ssd 480gb", "ssd 1tb"],
+        "nome": "SSD 1TB",
+        "palavras_chave": ["ssd 1tb"],
         "preco_max": 500.0,
-        "preco_alvo": 250.0,
         "categoria": "Eletrônicos"
     },
     {
         "id": "monitor",
         "nome": "Monitor 24+",
-        "palavras_chave": ["monitor 24 polegadas", "monitor full hd"],
+        "palavras_chave": ["monitor 24"],
         "preco_max": 1200.0,
-        "preco_alvo": 700.0,
         "categoria": "Eletrônicos"
-    }
+    },
+
+    # ==================== GROWTH (URLs diretas) ====================
+    {
+        "id": "whey_growth_concentrado_1kg",
+        "nome": "Whey Protein Concentrado 1kg (Growth)",
+        "palavras_chave": ["whey protein concentrado 1kg"],
+        "preco_max": 200.0,
+        "categoria": "Suplementos"
+    },
+    {
+        "id": "creatina_monohidratada_250g",
+        "nome": "Creatina Monohidratada 250g (Growth)",
+        "palavras_chave": ["creatina monohidratada 250g"],
+        "preco_max": 80.0,
+        "categoria": "Suplementos"
+    },
+    {
+        "id": "kit_whey_creatina_growth",
+        "nome": "Kit Whey + Creatina (Growth)",
+        "palavras_chave": ["kit whey creatina"],
+        "preco_max": 250.0,
+        "categoria": "Suplementos"
+    },
 ]
+
+SCRAPE_CONFIG = {
+    "max_por_scraper": 2,
+    "max_por_produto": 4,
+    "seen_dias_ttl": 90,
+}

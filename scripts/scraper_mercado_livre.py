@@ -3,13 +3,13 @@ import os
 import re
 from bs4 import BeautifulSoup
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from scripts.browser_utils import get_browser_page
+from scripts.browser_utils import fetch_playwright
 
 
-async def buscar_produtos(termo: str, max_preco: float = None) -> list:
+def buscar_produtos(termo: str, max_preco: float = None) -> list:
     url = f"https://lista.mercadolivre.com.br/{termo.replace(' ', '-')}"
     try:
-        html = await get_browser_page(url, wait_selector="li.ui-search-layout__item")
+        html = fetch_playwright(url, wait_selector="li.ui-search-layout__item", extra_wait=5000)
     except Exception as e:
         print(f"Erro ao buscar no ML: {e}")
         return []
@@ -57,6 +57,11 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
             if link.startswith("/"):
                 link = f"https://www.mercadolivre.com.br{link}"
 
+            imagem = ""
+            img_el = item.select_one("img")
+            if img_el:
+                imagem = img_el.get("src", "") or img_el.get("data-src", "")
+
             frete_el = item.select_one("span.ui-search-item__shipping--free")
             frete = "Grátis" if frete_el else "Pago"
 
@@ -66,7 +71,8 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
                 "preco_antigo": preco_antigo,
                 "url": link,
                 "loja": "Mercado Livre",
-                "frete": frete
+                "frete": frete,
+                "imagem": imagem
             }
             produtos.append(produto)
         except Exception:
@@ -76,7 +82,6 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
 
 
 if __name__ == "__main__":
-    import asyncio
-    produtos = asyncio.run(buscar_produtos("tênis nike"))
+    produtos = buscar_produtos("tênis nike")
     for p in produtos[:5]:
         print(f"{p['nome']} - R$ {p['preco']:.2f}")

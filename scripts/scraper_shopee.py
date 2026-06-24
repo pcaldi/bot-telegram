@@ -56,13 +56,19 @@ def buscar_produtos(termo: str, max_preco: float = None) -> list:
             shop_id = item_data.get("shopid")
             url_produto = f"https://shopee.com.br/product/{shop_id}/{item_id}"
 
+            imagem = ""
+            images = item_data.get("images", [])
+            if images:
+                imagem = f"https://cf.shopee.com.br/file/{images[0]}"
+
             produto = {
                 "nome": nome,
                 "preco": price,
-                "preco_antigo": price_max if price_max > price else None,
+                "preco_antigo": None,
                 "url": url_produto,
                 "loja": "Shopee",
-                "frete": "Grátis" if item_data.get("show_free_shipping") else "Pago"
+                "frete": "Grátis" if item_data.get("show_free_shipping") else "Pago",
+                "imagem": imagem
             }
             produtos.append(produto)
         except Exception:

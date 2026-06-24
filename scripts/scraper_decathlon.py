@@ -3,16 +3,43 @@ import os
 import re
 from bs4 import BeautifulSoup
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from scripts.browser_utils import get_browser_page
 
 
-async def buscar_produtos(termo: str, max_preco: float = None) -> list:
+def buscar_produtos(termo: str, max_preco: float = None, context=None) -> list:
     url = f"https://www.decathlon.com.br/busca?q={termo.replace(' ', '+')}"
+
+    close_page = False
+    if context:
+        page = context.new_page()
+        close_page = True
+    else:
+        from playwright.sync_api import sync_playwright
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            locale="pt-BR"
+        )
+        page = context.new_page()
+
     try:
-        html = await get_browser_page(url, extra_wait=5000)
+        page.goto(url, wait_until="domcontentloaded", timeout=20000)
+        page.wait_for_timeout(8000)
+        html = page.content()
     except Exception as e:
         print(f"Erro ao buscar no Decathlon: {e}")
         return []
+    finally:
+        try:
+            page.close()
+        except Exception:
+            pass
+        if not close_page:
+            try:
+                browser.close()
+                pw.stop()
+            except Exception:
+                pass
 
     soup = BeautifulSoup(html, "lxml")
     produtos = []
@@ -82,7 +109,6 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
 
 
 if __name__ == "__main__":
-    import asyncio
-    produtos = asyncio.run(buscar_produtos("tênis corrida"))
+    produtos = buscar_produtos("tênis corrida")
     for p in produtos[:5]:
         print(f"{p['nome']} - R$ {p['preco']:.2f}")

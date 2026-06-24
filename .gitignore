@@ -2,8 +2,14 @@
 token*
 __pycache__/
 *.pyc
-data/seen_products.json
-data/prices_history.json
 venv/
 .venv/
+.playwright/
+node_modules/
+*.log
+.DS_Store
+.idea/
+.vscode/
+data/seen_products.json
+data/prices_history.json
 !data/.gitkeep

@@ -46,7 +46,8 @@ def buscar_produtos(termo: str, max_preco: float = None) -> list:
                 continue
 
             preco_texto = f"{preco_el.get_text().strip()}{preco_frac_el.get_text().strip() if preco_frac_el else '00'}"
-            preco = float(preco_texto.replace(".", "").replace(",", "."))
+            preco_texto = preco_texto.replace(".", "").replace(",", ".").replace("\xa0", "")
+            preco = float(preco_texto)
 
             if max_preco and preco > max_preco:
                 continue

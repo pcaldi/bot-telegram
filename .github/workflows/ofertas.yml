@@ -12,22 +12,23 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Restore cache
         id: cache
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: data/
-          key: seen-products-${{ github.run_id }}
+          key: seen-products-main
           restore-keys: |
             seen-products-
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
@@ -35,13 +36,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install Playwright browsers
-        run: |
-          pip install playwright
-          playwright install chromium
+        run: playwright install chromium
 
       - name: Run scrapers
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CANAL_ID: ${{ secrets.CANAL_ID }}
           GRUPO_ID: ${{ secrets.GRUPO_ID }}
-        run: python scripts/main.py
+        run: python scripts/main.py --once
