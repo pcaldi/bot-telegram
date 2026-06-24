@@ -18,30 +18,19 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
     soup = BeautifulSoup(html, "lxml")
     produtos = []
 
-    items = soup.select("[class*=product]")
-    for item in items[:15]:
+    items = soup.select("div[class*=product-card]")
+    for item in items[:10]:
         try:
-            nome_el = item.select_one("h3") or item.select_one("[class*=title]") or item.select_one("p")
-            link_el = item if item.name == "a" else item.select_one("a[href]")
-
-            if not nome_el or not link_el:
+            texts = list(item.stripped_strings)
+            if len(texts) < 3:
                 continue
 
-            name_text = nome_el.get_text(strip=True)
-            if len(name_text) < 5:
-                continue
+            name = texts[1] if len(texts) > 1 else texts[0]
 
-            href = link_el.get("href", "")
-            if not href:
-                continue
-            if href.startswith("/"):
-                href = f"https://www.decathlon.com.br{href}"
-
-            # Look for price in the item
             price_text = ""
-            for text_node in item.stripped_strings:
-                if "R$" in text_node:
-                    price_text = text_node
+            for t in texts:
+                if "R$" in t:
+                    price_text = t
                     break
 
             if not price_text:
@@ -55,10 +44,27 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
             if max_preco and preco > max_preco:
                 continue
 
+            link_el = item.select_one("a[href*='/p']") or item.select_one("a[href]")
+            if not link_el:
+                continue
+            href = link_el.get("href", "")
+            if href.startswith("/"):
+                href = f"https://www.decathlon.com.br{href}"
+
+            preco_antigo = None
+            for t in texts[texts.index(price_text) + 1:]:
+                if "R$" in t:
+                    try:
+                        old_text = re.sub(r'[^\d.,]', '', t).replace(".", "").replace(",", ".")
+                        preco_antigo = float(old_text)
+                    except ValueError:
+                        preco_antigo = None
+                    break
+
             produto = {
-                "nome": name_text[:100],
+                "nome": name[:100],
                 "preco": preco,
-                "preco_antigo": None,
+                "preco_antigo": preco_antigo,
                 "url": href,
                 "loja": "Decathlon",
                 "frete": "Consulta"

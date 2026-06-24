@@ -8,13 +8,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import CATEGORIAS
 from scripts.scraper_amazon import buscar_produtos as amz_buscar
-from scripts.scraper_shopee import buscar_produtos as sho_buscar
 from scripts.scraper_netshoes import buscar_produtos as net_buscar
+from scripts.scraper_decathlon import buscar_produtos as dec_buscar
+from scripts.scraper_shopee import buscar_produtos as sho_buscar
+from scripts.send_telegram import enviar_oferta
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 SEEN_FILE = os.path.join(DATA_DIR, "seen_products.json")
-
-from scripts.send_telegram import enviar_oferta
 
 
 def load_seen() -> dict:
@@ -37,8 +37,8 @@ def gerar_id(produto: dict) -> str:
 async def rate_limited_send(produto: dict):
     await asyncio.sleep(2)
     try:
-        await enviar_oferta(produto)
-        return True
+        ok = await enviar_oferta(produto)
+        return ok
     except Exception as e:
         print(f"Erro ao enviar: {e}")
         await asyncio.sleep(5)
@@ -51,15 +51,15 @@ async def executar_scrapers():
     seen = load_seen()
     novos = 0
 
-    # Only search a few terms per category to avoid rate limits
     termos_para_buscar = []
     for cat_key, cat_info in CATEGORIAS.items():
-        for termo in cat_info["palavras_chave"][:2]:
+        for termo in cat_info["palavras_chave"][:3]:
             termos_para_buscar.append((termo, cat_info.get("max_preco")))
 
     for termo, max_preco in termos_para_buscar:
         print(f"  Buscando: {termo}")
 
+        # Amazon (sync - funciona)
         try:
             produtos = amz_buscar(termo, max_preco)
             for produto in produtos[:3]:
@@ -69,19 +69,9 @@ async def executar_scrapers():
                     seen[pid] = datetime.now().isoformat()
                     novos += 1
         except Exception as e:
-            print(f"  Erro Amazon {termo}: {e}")
+            print(f"  Erro Amazon: {e}")
 
-        try:
-            produtos_sho = sho_buscar(termo, max_preco)
-            for produto in produtos_sho[:3]:
-                pid = gerar_id(produto)
-                if pid not in seen:
-                    await rate_limited_send(produto)
-                    seen[pid] = datetime.now().isoformat()
-                    novos += 1
-        except Exception as e:
-            print(f"  Erro Shopee {termo}: {e}")
-
+        # Netshoes (async - funciona)
         try:
             produtos_net = await net_buscar(termo, max_preco)
             for produto in produtos_net[:3]:
@@ -91,7 +81,31 @@ async def executar_scrapers():
                     seen[pid] = datetime.now().isoformat()
                     novos += 1
         except Exception as e:
-            print(f"  Erro Netshoes {termo}: {e}")
+            print(f"  Erro Netshoes: {e}")
+
+        # Decathlon (async - funciona)
+        try:
+            produtos_dec = await dec_buscar(termo, max_preco)
+            for produto in produtos_dec[:3]:
+                pid = gerar_id(produto)
+                if pid not in seen:
+                    await rate_limited_send(produto)
+                    seen[pid] = datetime.now().isoformat()
+                    novos += 1
+        except Exception as e:
+            print(f"  Erro Decathlon: {e}")
+
+        # Shopee (tentativa)
+        try:
+            produtos_sho = sho_buscar(termo, max_preco)
+            for produto in produtos_sho[:3]:
+                pid = gerar_id(produto)
+                if pid not in seen:
+                    await rate_limited_send(produto)
+                    seen[pid] = datetime.now().isoformat()
+                    novos += 1
+        except Exception as e:
+            print(f"  Erro Shopee: {e}")
 
     save_seen(seen)
     print(f"[{datetime.now()}] Finalizado. {novos} ofertas novas enviadas.")

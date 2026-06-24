@@ -22,7 +22,7 @@ async def enviar_mensagem(texto: str, chat_id: int = CANAL_ID):
 
 async def enviar_oferta(produto: dict):
     texto = formatar_oferta(produto)
-    await enviar_mensagem(texto)
+    return await enviar_mensagem(texto)
 
 
 def formatar_oferta(produto: dict) -> str:
