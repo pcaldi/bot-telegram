@@ -6,3 +6,4 @@ data/seen_products.json
 data/prices_history.json
 venv/
 .venv/
+!data/.gitkeep
