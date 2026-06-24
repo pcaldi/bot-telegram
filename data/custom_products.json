@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "id": "custom_olympikus_corre_5",
+    "nome": "Olympikus Corre 5",
+    "palavras_chave": [
+      "olympikus corre 5"
+    ],
+    "preco_max": 599.0,
+    "categoria": "Custom"
+  },
+  {
+    "id": "custom_asics_gel-nimbus_28",
+    "nome": "Asics Gel-Nimbus 28",
+    "palavras_chave": [
+      "asics gel-nimbus 28"
+    ],
+    "preco_max": 1169.0,
+    "categoria": "Custom"
+  },
+  {
+    "id": "custom_asics_novabast_3",
+    "nome": "Asics Novabast 3",
+    "palavras_chave": [
+      "asics novabast 3"
+    ],
+    "preco_max": 1600.0,
+    "categoria": "Custom"
+  },
+  {
+    "id": "custom_adidas_adizero_evo_sl",
+    "nome": "Adidas Adizero Evo Sl",
+    "palavras_chave": [
+      "adidas adizero evo sl"
+    ],
+    "preco_max": 989.0,
+    "categoria": "Custom"
+  },
+  {
+    "id": "custom_whey_protein_concentrado_dux_nutrition_pote_900g_sabor_baunilha",
+    "nome": "Whey Protein Concentrado Dux Nutrition Pote 900G Sabor Baunilha",
+    "palavras_chave": [
+      "whey protein concentrado dux nutrition pote 900g sabor baunilha"
+    ],
+    "preco_max": 185.0,
+    "categoria": "Custom"
+  },
+  {
+    "id": "custom_100%_whey_max_titanium_refil_900g",
+    "nome": "100% Whey Max Titanium Refil 900G",
+    "palavras_chave": [
+      "100% whey max titanium refil 900g"
+    ],
+    "preco_max": 140.0,
+    "categoria": "Custom"
+  }
+]
