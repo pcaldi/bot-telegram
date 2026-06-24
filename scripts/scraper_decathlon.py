@@ -3,7 +3,6 @@ import os
 import re
 from bs4 import BeautifulSoup
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import CATEGORIAS
 from scripts.browser_utils import get_browser_page
 
 
@@ -51,6 +50,11 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
             if href.startswith("/"):
                 href = f"https://www.decathlon.com.br{href}"
 
+            imagem = ""
+            img_el = item.select_one("img")
+            if img_el:
+                imagem = img_el.get("src", "") or img_el.get("data-src", "")
+
             preco_antigo = None
             for t in texts[texts.index(price_text) + 1:]:
                 if "R$" in t:
@@ -67,22 +71,14 @@ async def buscar_produtos(termo: str, max_preco: float = None) -> list:
                 "preco_antigo": preco_antigo,
                 "url": href,
                 "loja": "Decathlon",
-                "frete": "Consulta"
+                "frete": "Consulta",
+                "imagem": imagem
             }
             produtos.append(produto)
         except Exception:
             continue
 
     return produtos
-
-
-async def buscar_todas_categorias() -> list:
-    todos_produtos = []
-    for cat_key, cat_info in CATEGORIAS.items():
-        for termo in cat_info["palavras_chave"]:
-            produtos = await buscar_produtos(termo, cat_info.get("max_preco"))
-            todos_produtos.extend(produtos)
-    return todos_produtos
 
 
 if __name__ == "__main__":
