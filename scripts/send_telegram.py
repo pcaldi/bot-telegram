@@ -88,7 +88,6 @@ def formatar_oferta(produto: dict) -> str:
     preco = produto.get("preco", 0)
     preco_antigo = produto.get("preco_antigo")
     loja = produto.get("loja", "Loja")
-    frete = produto.get("frete", "Não informado")
     url = produto.get("url", "#")
     tipo = produto.get("tipo", "nova")
     preco_alvo = produto.get("preco_alvo")
@@ -103,30 +102,26 @@ def formatar_oferta(produto: dict) -> str:
     texto_preco = ""
     if preco_antigo and preco > 0:
         pct = (1 - preco / preco_antigo) * 100
-        texto_preco = f"de {formatar_preco(preco_antigo)} por {formatar_preco(preco)}*"
+        texto_preco = f"👉 de {formatar_preco(preco_antigo)} \n✅ por {formatar_preco(preco)}*"
     else:
-        texto_preco = f"por {formatar_preco(preco)}"
+        texto_preco = f"✅por {formatar_preco(preco)}"
 
     linha_abaixo = ""
     if preco_alvo and preco <= preco_alvo:
-        linha_abaixo = "\n🎯 <b>ABAIXO DO PREÇO ALVO!</b>"
+        linha_abaixo = "🎯 <b>ABAIXO DO PREÇO ALVO!</b>"
 
     linhas = [
         header,
         "",
-        f"👟 <b>{marca}</b>",
+        f" 🔥<b>{marca}</b>",
         f"📌 <b>{modelo}</b>",
         "",
         f"💰 {texto_preco}",
     ]
 
-    if preco_alvo:
-        linhas.append(f"🎯 Preço alvo: {formatar_preco(preco_alvo)}")
-
     linhas.extend([
         "",
         f"{emoji_loja} Loja: {loja}",
-        f"🚚 Frete: {frete}",
         f"🔗 <a href='{url}'>{dominio}</a>",
     ])
 
