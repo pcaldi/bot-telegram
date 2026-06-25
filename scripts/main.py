@@ -1,4 +1,3 @@
-import json
 import asyncio
 import hashlib
 import re
@@ -18,6 +17,7 @@ from scripts.scraper_amazon import AmazonScraper
 from scripts.scraper_playwright_runner import run_growth_batch
 from scripts.send_telegram import enviar_oferta, close_session
 from scripts.commands import poll_updates, get_all_products, load_custom
+from scripts.core.database import Database
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,44 +26,29 @@ logging.basicConfig(
 )
 log = logging.getLogger("bot-ofertas")
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-SEEN_FILE = os.path.join(DATA_DIR, "seen_products.json")
-
 MAX_PER_SCRAPER = SCRAPE_CONFIG["max_por_scraper"]
 MAX_PER_PRODUTO = SCRAPE_CONFIG["max_por_produto"]
 SEEN_TTL_DIAS = SCRAPE_CONFIG["seen_dias_ttl"]
 SCRAPE_INTERVAL = 3600
 
 _executor = ThreadPoolExecutor(max_workers=2)
+_db: Optional[Database] = None
 
 
-def load_seen() -> dict:
-    if os.path.exists(SEEN_FILE):
-        try:
-            with open(SEEN_FILE, "r") as f:
-                data = json.load(f)
-                if data:
-                    return data
-        except (json.JSONDecodeError, IOError) as e:
-            log.warning("Arquivo seen_products.json corrompido: %s", e)
-    return {}
+def get_db() -> Database:
+    """Retorna instância singleton do banco de dados."""
+    global _db
+    if _db is None:
+        _db = Database()
+    return _db
 
 
-def save_seen(seen: dict):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(SEEN_FILE, "w") as f:
-        json.dump(seen, f, indent=2)
-
-
-def prune_seen(seen: dict) -> dict:
-    cutoff = (datetime.now() - timedelta(days=SEEN_TTL_DIAS)).isoformat()
-    antes = len(seen)
-    seen = {k: v for k, v in seen.items()
-            if isinstance(v, dict) and v.get("last_seen", "") >= cutoff}
-    removidos = antes - len(seen)
-    if removidos > 0:
-        log.info("Pruning: removidas %d entradas antigas de %d", removidos, antes)
-    return seen
+def close_db():
+    """Fecha a conexão com o banco."""
+    global _db
+    if _db:
+        _db.close()
+        _db = None
 
 
 def normalizar_url(url: str) -> str:
@@ -113,29 +98,47 @@ def dedup_produtos(produtos: list) -> list:
     return result
 
 
-def check_and_mark(prod, seen):
+def check_and_mark(prod: dict, db: Database) -> Optional[str]:
+    """Verifica se produto é novo ou teve queda de preço.
+
+    Args:
+        prod: Dict do produto.
+        db: Instância do banco de dados.
+
+    Returns:
+        "nova", "queda", ou None.
+    """
     pid = gerar_id(prod)
     preco_atual = prod["preco"]
 
-    if pid not in seen:
+    existing = db.buscar_oferta(pid)
+
+    if existing is None:
         prod["tipo"] = "nova"
-        seen[pid] = {
-            "last_price": preco_atual,
-            "first_seen": datetime.now().isoformat(),
-            "last_seen": datetime.now().isoformat()
-        }
+        db.salvar_oferta({
+            "produto_id": pid,
+            "nome": prod.get("nome", ""),
+            "preco_atual": preco_atual,
+            "loja": prod.get("loja", ""),
+            "url": prod.get("url"),
+            "imagem": prod.get("imagem"),
+            "categoria": prod.get("categoria"),
+        })
+        db.salvar_historico(pid, preco_atual)
         return "nova"
 
-    entry = seen[pid]
-    preco_anterior = entry["last_price"] if isinstance(entry, dict) else preco_atual
+    preco_anterior = existing.get("preco_atual", preco_atual)
 
     if preco_atual < preco_anterior:
         prod["tipo"] = "queda"
-        seen[pid]["last_price"] = preco_atual
-        seen[pid]["last_seen"] = datetime.now().isoformat()
+        db.atualizar_preco(pid, preco_atual)
         return "queda"
 
-    seen[pid]["last_seen"] = datetime.now().isoformat()
+    db.conn.execute(
+        "UPDATE ofertas SET ultima_vista=? WHERE produto_id=?",
+        (datetime.now().isoformat(), pid),
+    )
+    db.conn.commit()
     return None
 
 
@@ -190,8 +193,8 @@ def _scrape_all() -> dict:
 async def executar_scrapers():
     log.info("Iniciando monitoramento...")
 
-    seen = load_seen()
-    seen = prune_seen(seen)
+    db = get_db()
+    db.cleanup_historico(SEEN_TTL_DIAS)
     novos = 0
     quedas = 0
     loop = asyncio.get_running_loop()
@@ -210,12 +213,13 @@ async def executar_scrapers():
             produtos = dedup_produtos(produtos_brutos)
 
             for prod in produtos[:MAX_PER_PRODUTO]:
-                tipo = check_and_mark(prod, seen)
+                tipo = check_and_mark(prod, db)
                 if tipo:
                     await asyncio.sleep(2)
                     try:
                         await enviar_oferta(prod)
-                        save_seen(seen)
+                        pid = gerar_id(prod)
+                        db.registrar_envio(pid, tipo, prod["preco"])
                     except Exception as e:
                         log.error("  Erro ao enviar: %s", e)
                     if tipo == "nova":
@@ -225,8 +229,11 @@ async def executar_scrapers():
     finally:
         await close_session()
 
-    save_seen(seen)
-    log.info("Finalizado. %d novas + %d quedas de preço.", novos, quedas)
+    stats = db.stats()
+    log.info(
+        "Finalizado. %d novas + %d quedas. Banco: %d ofertas, %d históricos.",
+        novos, quedas, stats["ofertas"], stats["historico"],
+    )
     return novos + quedas
 
 
@@ -258,6 +265,7 @@ async def main():
         for t in tasks:
             t.cancel()
         await close_session()
+        close_db()
 
 
 if __name__ == "__main__":
