@@ -11,6 +11,7 @@ node_modules/
 .idea/
 .vscode/
 data/custom_products.json
+scripts/data/
 !data/.gitkeep
 
 # Planejamento e tarefas
