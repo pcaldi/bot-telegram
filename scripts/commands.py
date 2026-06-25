@@ -156,7 +156,7 @@ async def handle_message(token: str, message: dict):
     command = parts[0].split("@")[0].lower()
     args = parts[1] if len(parts) > 1 else ""
 
-    responses = {
+    static_responses = {
         "/start": "Bem-vindo! Comandos:\n"
                   "/add &lt;termo&gt; [preco_max] — Adicionar produto\n"
                   "/remove &lt;id&gt; — Remover produto\n"
@@ -168,12 +168,14 @@ async def handle_message(token: str, message: dict):
                  "/remove &lt;número ou id&gt; — Ex: /remove 3\n"
                  "/list — Ver produtos adicionados\n"
                  "/status — Ver estatísticas",
-        "/list": _handle_list(),
-        "/status": _handle_status(),
     }
 
-    if command in responses:
-        await _send_message(token, chat_id, responses[command])
+    if command in static_responses:
+        await _send_message(token, chat_id, static_responses[command])
+    elif command == "/list":
+        await _send_message(token, chat_id, _handle_list())
+    elif command == "/status":
+        await _send_message(token, chat_id, _handle_status())
     elif command == "/add":
         await _send_message(token, chat_id, _handle_add(args))
     elif command == "/remove":
