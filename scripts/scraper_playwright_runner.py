@@ -17,6 +17,7 @@ import json
 sys.path.insert(0, "{base_dir}")
 
 from playwright.sync_api import sync_playwright
+from playwright_stealth import Stealth
 from scripts.scraper_growth import buscar_produtos as growth_buscar
 
 terms = {terms_json}
@@ -24,6 +25,10 @@ max_preco = {max_preco}
 max_per = {max_per_scraper}
 
 resultados = {{}}
+stealth = Stealth(
+    navigator_languages_override=("pt-BR", "pt"),
+    navigator_platform_override="Win32",
+)
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
@@ -35,8 +40,11 @@ with sync_playwright() as p:
     for termo in terms:
         resultados[termo] = []
         try:
+            page = ctx.new_page()
+            stealth.apply_stealth_sync(page)
             produtos = growth_buscar(termo, max_preco, context=ctx)
             resultados[termo].extend(produtos[:max_per])
+            page.close()
         except Exception:
             pass
 

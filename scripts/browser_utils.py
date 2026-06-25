@@ -3,11 +3,17 @@ import time
 import threading
 import logging
 from playwright.sync_api import sync_playwright
+from playwright_stealth import Stealth
 
 log = logging.getLogger("bot-ofertas")
 
 MAX_RETRIES = 3
 RETRY_DELAY = 2
+
+_stealth = Stealth(
+    navigator_languages_override=("pt-BR", "pt"),
+    navigator_platform_override="Win32",
+)
 
 
 class BrowserManager:
@@ -35,11 +41,13 @@ class BrowserManager:
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
                 locale="pt-BR"
             )
-            log.info("Browser Playwright iniciado")
+            log.info("Browser Playwright iniciado (stealth)")
 
     def new_page(self):
         self.start()
-        return self._context.new_page()
+        page = self._context.new_page()
+        _stealth.apply_stealth_sync(page)
+        return page
 
     def stop(self):
         if self._browser:

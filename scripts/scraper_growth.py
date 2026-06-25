@@ -2,6 +2,7 @@ import sys
 import os
 import re
 import json
+from scripts.browser_utils import BrowserManager
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -132,15 +133,11 @@ def buscar_produtos(termo, preco_maximo=None, page=None, context=None):
         ctx = page.context
         products = scraper.scrape([termo], context=ctx)
     else:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            ctx = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-                locale="pt-BR"
-            )
-            products = scraper.scrape([termo], context=ctx)
-            browser.close()
+        mgr = BrowserManager.get()
+        page = mgr.new_page()
+        ctx = page.context
+        products = scraper.scrape([termo], context=ctx)
+        page.close()
 
     if preco_maximo:
         products = [p for p in products if p.get("preco", 0) <= preco_maximo]

@@ -2,6 +2,7 @@ import sys
 import os
 import re
 from bs4 import BeautifulSoup
+from scripts.browser_utils import BrowserManager
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -9,20 +10,12 @@ def buscar_produtos(termo: str, max_preco: float = None, context=None) -> list:
     url = f"https://www.centauro.com.br/busca?q={termo.replace(' ', '+')}"
 
     close_page = False
-    pw = None
-    browser = None
     if context:
         page = context.new_page()
         close_page = True
     else:
-        from playwright.sync_api import sync_playwright
-        pw = sync_playwright().start()
-        browser = pw.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-            locale="pt-BR"
-        )
-        page = context.new_page()
+        mgr = BrowserManager.get()
+        page = mgr.new_page()
 
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -36,14 +29,6 @@ def buscar_produtos(termo: str, max_preco: float = None, context=None) -> list:
             page.close()
         except Exception:
             pass
-        if not close_page:
-            try:
-                if browser:
-                    browser.close()
-                if pw:
-                    pw.stop()
-            except Exception:
-                pass
 
     soup = BeautifulSoup(html, "lxml")
     produtos = []
