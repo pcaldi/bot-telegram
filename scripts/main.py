@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN
 from scripts.scraper_amazon import AmazonScraper
+from scripts.scraper_procorrer import ProcorrerScraper
 from scripts.scraper_playwright_runner import run_growth_batch
 from scripts.send_telegram import enviar_oferta, close_session
 from scripts.commands import poll_updates, get_all_products, load_custom
@@ -173,6 +174,17 @@ def _scrape_all() -> dict:
         except Exception as e:
             log.warning("Amazon falhou para '%s': %s", termo, e)
 
+    # Scraping via Procorrer (Playwright + stealth)
+    pc_scraper = ProcorrerScraper()
+    pc_results = {}
+    for termo in unique_terms:
+        pc_results[termo] = []
+        try:
+            pm = term_to_preco_max.get(termo, 999999)
+            pc_results[termo].extend(pc_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
+        except Exception as e:
+            log.warning("Procorrer falhou para '%s': %s", termo, e)
+
     # Scraping via Growth (Playwright batch)
     pw_results = {}
     if growth_terms:
@@ -185,7 +197,11 @@ def _scrape_all() -> dict:
     # Combina resultados
     combined = {}
     for termo in unique_terms:
-        combined[termo] = amz_results.get(termo, []) + pw_results.get(termo, [])
+        combined[termo] = (
+            amz_results.get(termo, [])
+            + pc_results.get(termo, [])
+            + pw_results.get(termo, [])
+        )
 
     return combined
 
@@ -200,7 +216,7 @@ async def executar_scrapers():
     loop = asyncio.get_running_loop()
 
     try:
-        log.info("  Executando scrapers (Amazon + Growth)...")
+        log.info("  Executando scrapers (Amazon + Procorrer + Growth)...")
         all_results = await loop.run_in_executor(_executor, _scrape_all)
 
         all_prods = get_all_products(PRODUTOS_MONITORADOS)

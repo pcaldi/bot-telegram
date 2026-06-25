@@ -146,6 +146,22 @@ PRODUTOS_MONITORADOS = [
         "preco_max": 250.0,
         "categoria": "Suplementos"
     },
+
+    # ==================== PROCORRER (Tênis de corrida) ====================
+    {
+        "id": "tenis_corrida_procorrer",
+        "nome": "Tênis Corrida (Procorrer)",
+        "palavras_chave": ["tênis corrida"],
+        "preco_max": 800.0,
+        "categoria": "Tênis"
+    },
+    {
+        "id": "tenis_nike_corrida_procorrer",
+        "nome": "Tênis Nike Corrida (Procorrer)",
+        "palavras_chave": ["nike corrida"],
+        "preco_max": 700.0,
+        "categoria": "Tênis"
+    },
 ]
 
 SCRAPE_CONFIG = {

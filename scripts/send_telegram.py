@@ -24,6 +24,7 @@ LOJA_EMOJI = {
     "Centauro": "🟢",
     "Decathlon": "🔵",
     "Growth": "💪",
+    "Procorrer": "👟",
 }
 
 LOJA_DOMINIO = {
@@ -34,6 +35,7 @@ LOJA_DOMINIO = {
     "Centauro": "centauro.com.br",
     "Decathlon": "decathlon.com.br",
     "Growth": "gsuplementos.com.br",
+    "Procorrer": "procorrer.com.br",
 }
 
 _session = None
