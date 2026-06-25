@@ -12,6 +12,7 @@ node_modules/
 .vscode/
 data/seen_products.json
 data/prices_history.json
+data/custom_products.json
 !data/.gitkeep
 
 # Planejamento e tarefas
