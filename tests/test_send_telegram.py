@@ -122,3 +122,27 @@ class TestFormatarOferta:
         # O nome deve ser truncado para 80 caracteres
         assert "A" * 80 in texto
         assert "A" * 81 not in texto
+
+    def test_oferta_menor_preco(self):
+        """Testa indicador de menor preço já visto."""
+        produto = {
+            "nome": "Produto Teste",
+            "preco": 99.99,
+            "url": "https://example.com",
+            "loja": "Amazon",
+            "menor_preco": 99.99,
+        }
+        texto = formatar_oferta(produto)
+        assert "Menor preço já visto" in texto
+
+    def test_oferta_sem_menor_preco(self):
+        """Testa quando não é menor preço."""
+        produto = {
+            "nome": "Produto Teste",
+            "preco": 199.99,
+            "url": "https://example.com",
+            "loja": "Amazon",
+            "menor_preco": 99.99,
+        }
+        texto = formatar_oferta(produto)
+        assert "Menor preço já visto" not in texto

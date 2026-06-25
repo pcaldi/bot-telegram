@@ -15,9 +15,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN
 from scripts.scraper_amazon import AmazonScraper
 from scripts.scraper_procorrer import ProcorrerScraper
+from scripts.scraper_decathlon import DecathlonScraper
 from scripts.scraper_playwright_runner import run_growth_batch
 from scripts.send_telegram import enviar_oferta, close_session
 from scripts.commands import poll_updates, get_all_products, load_custom
+from scripts.browser_utils import BrowserManager
 from scripts.core.database import Database
 
 logging.basicConfig(
@@ -135,11 +137,7 @@ def check_and_mark(prod: dict, db: Database) -> Optional[str]:
         db.atualizar_preco(pid, preco_atual)
         return "queda"
 
-    db.conn.execute(
-        "UPDATE ofertas SET ultima_vista=? WHERE produto_id=?",
-        (datetime.now().isoformat(), pid),
-    )
-    db.conn.commit()
+    db.atualizar_vista(pid)
     return None
 
 
@@ -185,6 +183,17 @@ def _scrape_all() -> dict:
         except Exception as e:
             log.warning("Procorrer falhou para '%s': %s", termo, e)
 
+    # Scraping via Decathlon (Playwright + stealth)
+    dc_scraper = DecathlonScraper()
+    dc_results = {}
+    for termo in unique_terms:
+        dc_results[termo] = []
+        try:
+            pm = term_to_preco_max.get(termo, 999999)
+            dc_results[termo].extend(dc_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
+        except Exception as e:
+            log.warning("Decathlon falhou para '%s': %s", termo, e)
+
     # Scraping via Growth (Playwright batch)
     pw_results = {}
     if growth_terms:
@@ -200,6 +209,7 @@ def _scrape_all() -> dict:
         combined[termo] = (
             amz_results.get(termo, [])
             + pc_results.get(termo, [])
+            + dc_results.get(termo, [])
             + pw_results.get(termo, [])
         )
 
@@ -216,7 +226,7 @@ async def executar_scrapers():
     loop = asyncio.get_running_loop()
 
     try:
-        log.info("  Executando scrapers (Amazon + Procorrer + Growth)...")
+        log.info("  Executando scrapers (Amazon + Procorrer + Decathlon + Growth)...")
         all_results = await loop.run_in_executor(_executor, _scrape_all)
 
         all_prods = get_all_products(PRODUTOS_MONITORADOS)
@@ -231,10 +241,13 @@ async def executar_scrapers():
             for prod in produtos[:MAX_PER_PRODUTO]:
                 tipo = check_and_mark(prod, db)
                 if tipo:
+                    pid = gerar_id(prod)
+                    menor_preco = db.buscar_menor_preco(pid)
+                    if menor_preco is not None and prod["preco"] <= menor_preco:
+                        prod["menor_preco"] = menor_preco
                     await asyncio.sleep(2)
                     try:
                         await enviar_oferta(prod)
-                        pid = gerar_id(prod)
                         db.registrar_envio(pid, tipo, prod["preco"])
                     except Exception as e:
                         log.error("  Erro ao enviar: %s", e)
@@ -281,6 +294,7 @@ async def main():
         for t in tasks:
             t.cancel()
         await close_session()
+        BrowserManager.get().stop()
         close_db()
 
 

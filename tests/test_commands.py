@@ -2,7 +2,7 @@
 
 import pytest
 import scripts.commands as cmds
-from scripts.commands import _handle_add, _handle_remove, _handle_list
+from scripts.commands import _handle_add, _handle_remove, _handle_list, _handle_status
 
 
 @pytest.fixture(autouse=True)
@@ -93,3 +93,18 @@ class TestHandleList:
         _handle_add("produto teste")
         resultado = _handle_list()
         assert "Produtos monitorados" in resultado
+
+
+class TestHandleStatus:
+    """Testes para o comando /status."""
+
+    def test_status_retorna_estatisticas(self):
+        """Testa que /status retorna estatísticas."""
+        resultado = _handle_status()
+        assert "Status do Bot" in resultado
+
+    def test_status_mostra_produtos_custom(self):
+        """Testa que /status mostra produtos custom."""
+        _handle_add("produto teste")
+        resultado = _handle_status()
+        assert "Produtos custom" in resultado

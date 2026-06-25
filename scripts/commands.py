@@ -4,6 +4,8 @@ import logging
 import aiohttp
 import asyncio
 
+from scripts.core.database import Database
+
 log = logging.getLogger("bot-ofertas")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
@@ -35,6 +37,7 @@ def get_all_products(base_products: list) -> list:
 
 
 async def _send_message(token: str, chat_id: int, text: str):
+    from scripts.send_telegram import _get_session
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
@@ -42,10 +45,10 @@ async def _send_message(token: str, chat_id: int, text: str):
         "parse_mode": "HTML",
         "disable_web_page_preview": True
     }
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-            if resp.status != 200:
-                log.warning("Erro ao enviar resposta: %d", resp.status)
+    session = _get_session()
+    async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+        if resp.status != 200:
+            log.warning("Erro ao enviar resposta: %d", resp.status)
 
 
 def _format_list(products: list) -> str:
@@ -120,6 +123,26 @@ def _handle_list() -> str:
     return _format_list(_custom_products)
 
 
+def _handle_status() -> str:
+    """Retorna estatísticas do bot."""
+    try:
+        db = Database()
+        stats = db.stats()
+        db.close()
+    except Exception as e:
+        return f"Erro ao consultar status: {e}"
+
+    lojas = ", ".join(stats["lojas"]) if stats["lojas"] else "Nenhuma"
+    return (
+        "📊 <b>Status do Bot</b>\n\n"
+        f"🏪 Ofertas rastreadas: <b>{stats['ofertas']}</b>\n"
+        f"📈 Registros de preço: <b>{stats['historico']}</b>\n"
+        f"📤 Ofertas enviadas: <b>{stats['enviadas']}</b>\n"
+        f"🏬 Lojas ativas: <b>{lojas}</b>\n"
+        f"📦 Produtos custom: <b>{len(_custom_products)}</b>"
+    )
+
+
 async def handle_message(token: str, message: dict):
     global _offset
 
@@ -138,12 +161,15 @@ async def handle_message(token: str, message: dict):
                   "/add &lt;termo&gt; [preco_max] — Adicionar produto\n"
                   "/remove &lt;id&gt; — Remover produto\n"
                   "/list — Listar produtos custom\n"
+                  "/status — Ver estatísticas do bot\n"
                   "/help — Esta ajuda",
         "/help": "Comandos:\n"
                  "/add &lt;termo&gt; [preco_max] — Ex: /add air fryer 500\n"
                  "/remove &lt;número ou id&gt; — Ex: /remove 3\n"
-                 "/list — Ver produtos adicionados",
+                 "/list — Ver produtos adicionados\n"
+                 "/status — Ver estatísticas",
         "/list": _handle_list(),
+        "/status": _handle_status(),
     }
 
     if command in responses:

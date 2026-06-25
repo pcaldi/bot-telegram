@@ -18,10 +18,6 @@ RETRY_DELAY = 1
 
 LOJA_EMOJI = {
     "Amazon": "🟡",
-    "Mercado Livre": "🟠",
-    "Shopee": "🟠",
-    "Netshoes": "🔵",
-    "Centauro": "🟢",
     "Decathlon": "🔵",
     "Growth": "💪",
     "Procorrer": "👟",
@@ -29,10 +25,6 @@ LOJA_EMOJI = {
 
 LOJA_DOMINIO = {
     "Amazon": "amazon.com.br",
-    "Mercado Livre": "mercadolivre.com.br",
-    "Shopee": "shopee.com.br",
-    "Netshoes": "netshoes.com.br",
-    "Centauro": "centauro.com.br",
     "Decathlon": "decathlon.com.br",
     "Growth": "gsuplementos.com.br",
     "Procorrer": "procorrer.com.br",
@@ -111,20 +103,6 @@ async def enviar_foto(url_foto: str, caption: str, chat_id: int = CANAL_ID):
     return True
 
 
-def formatar_preco(valor: float) -> str:
-    """Formata um float como preço brasileiro (mantido para compatibilidade).
-
-    Args:
-        valor: Valor a ser formatado
-
-    Returns:
-        Preço formatado (ex: "R$ 1.299,99")
-    """
-    # Usa a função do price_parser
-    from scripts.core.price_parser import formatar_preco as _formatar_preco
-    return _formatar_preco(valor)
-
-
 def extrair_marca(nome: str) -> str:
     marcas = {
         "nike": "Nike", "adidas": "Adidas", "puma": "Puma",
@@ -178,6 +156,7 @@ def formatar_oferta(produto: dict) -> str:
     url = produto.get("url", "#")
     tipo = produto.get("tipo", "nova")
     categoria = produto.get("categoria") or extrair_categoria(nome)
+    menor_preco = produto.get("menor_preco")
 
     emoji_loja = LOJA_EMOJI.get(loja, "🏪")
     dominio = LOJA_DOMINIO.get(loja, "")
@@ -218,6 +197,11 @@ def formatar_oferta(produto: dict) -> str:
         linhas.append(f"💰 Economia: <b>{formatar_preco(economia)}</b>")
     else:
         linhas.append(f"💰 Por <b>{formatar_preco(preco)}</b>")
+
+    # Indicador de menor preço
+    if menor_preco is not None and preco <= menor_preco:
+        linhas.append("")
+        linhas.append("🏆 <b>Menor preço já visto!</b>")
 
     linhas.append("")
 

@@ -274,6 +274,18 @@ class Database:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def atualizar_vista(self, produto_id: str):
+        """Atualiza a data da última visualização de uma oferta.
+
+        Args:
+            produto_id: ID do produto.
+        """
+        self.conn.execute(
+            "UPDATE ofertas SET ultima_vista=? WHERE produto_id=?",
+            (datetime.now().isoformat(), produto_id),
+        )
+        self.conn.commit()
+
     def cleanup_historico(self, dias: int = 90):
         """Remove registros de histórico antigos.
 

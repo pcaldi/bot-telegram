@@ -98,6 +98,23 @@ class TestAtualizarPreco:
         assert resultado is False
 
 
+class TestAtualizarVista:
+    """Testes para atualizar_vista."""
+
+    def test_atualizar_vista(self, db):
+        """Testa atualização da última visualização."""
+        db.salvar_oferta({
+            "produto_id": "test1",
+            "nome": "Produto",
+            "preco_atual": 199.99,
+            "loja": "Amazon",
+        })
+        oferta_antes = db.buscar_oferta("test1")
+        db.atualizar_vista("test1")
+        oferta_depois = db.buscar_oferta("test1")
+        assert oferta_depois["ultima_vista"] >= oferta_antes["ultima_vista"]
+
+
 class TestHistoricoPrecos:
     """Testes para salvar_historico e buscar_historico."""
 
