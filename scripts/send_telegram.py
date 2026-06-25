@@ -3,8 +3,13 @@ import asyncio
 import logging
 import sys
 import os
+from typing import Optional
+
+# Adiciona o diretório pai ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from config import TELEGRAM_BOT_TOKEN, CANAL_ID
+from scripts.core.price_parser import formatar_preco, calcular_desconto, calcular_economia
 
 log = logging.getLogger("bot-ofertas")
 
@@ -105,8 +110,17 @@ async def enviar_foto(url_foto: str, caption: str, chat_id: int = CANAL_ID):
 
 
 def formatar_preco(valor: float) -> str:
-    texto = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"R$ {texto}"
+    """Formata um float como preço brasileiro (mantido para compatibilidade).
+
+    Args:
+        valor: Valor a ser formatado
+
+    Returns:
+        Preço formatado (ex: "R$ 1.299,99")
+    """
+    # Usa a função do price_parser
+    from scripts.core.price_parser import formatar_preco as _formatar_preco
+    return _formatar_preco(valor)
 
 
 def extrair_marca(nome: str) -> str:
@@ -131,42 +145,83 @@ def extrair_modelo(nome: str) -> str:
     return " ".join(palavras).title() if palavras else nome[:30]
 
 
+def extrair_categoria(nome: str) -> str:
+    """Extrai a categoria do produto baseado no nome."""
+    nome_lower = nome.lower()
+
+    categorias = {
+        "Tênis": ["tênis", "tenis", "sapato", "sneaker", "corrida", "running"],
+        "Eletrônicos": ["fone", "mouse", "teclado", "monitor", "ssd", "notebook", "celular", "smartphone", "tablet", "headphone", "bluetooth"],
+        "Suplementos": ["whey", "creatina", "proteína", "protein", "creatine", "suplemento", "aminoácido", "bcaa", "glutamina"],
+        "Roupas": ["camisa", "camiseta", "calça", "shorts", "jaqueta", "moletom", "bermuda", "roupa"],
+        "Acessórios": ["mochila", "bolsa", "cinto", "óculos", "relógio", "acessório", "bone", "chapeu"],
+        "Casa": ["air fryer", "liquidificador", "aspirador", "cafeteira", "microondas", "ar condicionado", "ventilador"],
+        "Esportes": ["bola", "raquete", "epi", "capacete", "luva", "faixa", "toalha"],
+    }
+
+    for categoria, palavras in categorias.items():
+        for palavra in palavras:
+            if palavra in nome_lower:
+                return categoria
+
+    return "Outros"
+
+
 def formatar_oferta(produto: dict) -> str:
+    """Formata a oferta para envio no Telegram com visual aprimorado."""
     nome = produto.get("nome", "Produto")
     preco = produto.get("preco", 0)
     preco_antigo = produto.get("preco_antigo")
     loja = produto.get("loja", "Loja")
     url = produto.get("url", "#")
     tipo = produto.get("tipo", "nova")
+    categoria = produto.get("categoria") or extrair_categoria(nome)
 
-    marca = extrair_marca(nome)
     emoji_loja = LOJA_EMOJI.get(loja, "🏪")
     dominio = LOJA_DOMINIO.get(loja, "")
 
+    # Header com tipo de oferta
     if tipo == "queda":
         header = "⚡ <b>QUEDA DE PREÇO!</b>"
     else:
         header = "🔥 <b>NOVA OFERTA!</b>"
 
-    linhas = [
-        header,
-        "",
-        f"📦 <b>{nome[:80]}</b>",
-        "",
-    ]
+    linhas = [header, ""]
 
+    # Badge de categoria
+    emoji_categoria = {
+        "Tênis": "👟",
+        "Eletrônicos": "🎧",
+        "Suplementos": "💪",
+        "Roupas": "👕",
+        "Acessórios": "🎒",
+        "Casa": "🏠",
+        "Esportes": "⚽",
+        "Outros": "📦",
+    }
+    emoji_cat = emoji_categoria.get(categoria, "📦")
+    linhas.append(f"{emoji_cat} <i>{categoria}</i>")
+    linhas.append("")
+
+    # Nome do produto
+    linhas.append(f"<b>{nome[:80]}</b>")
+    linhas.append("")
+
+    # Preço e desconto
     if preco_antigo and preco_antigo > preco:
         desconto = int((1 - preco / preco_antigo) * 100)
-        linhas.append(f"❌ De {formatar_preco(preco_antigo)}")
+        economia = preco_antigo - preco
+        linhas.append(f"~~De <b>{formatar_preco(preco_antigo)}</b>~~")
         linhas.append(f"✅ Por <b>{formatar_preco(preco)}</b>  <b>-{desconto}%</b>")
+        linhas.append(f"💰 Economia: <b>{formatar_preco(economia)}</b>")
     else:
-        linhas.append(f"💰 <b>{formatar_preco(preco)}</b>")
+        linhas.append(f"💰 Por <b>{formatar_preco(preco)}</b>")
 
-    linhas.extend([
-        "",
-        f"{emoji_loja} <b>{loja}</b>",
-        f"🔗 <a href='{url}'>Comprar agora</a>",
-    ])
+    linhas.append("")
+
+    # Loja e link
+    linhas.append(f"{emoji_loja} <b>{loja}</b>")
+    linhas.append(f"🔗 <a href='{url}'>Comprar agora</a>")
 
     return "\n".join(linhas)
 

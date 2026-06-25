@@ -13,3 +13,7 @@ node_modules/
 data/seen_products.json
 data/prices_history.json
 !data/.gitkeep
+
+# Planejamento e tarefas
+PLANEJAMENTO.md
+TODO.md

@@ -8,11 +8,13 @@ import logging
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
+# Adiciona o diretório pai ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN
-from scripts.scraper_amazon import buscar_produtos as amz_buscar
+from scripts.scraper_amazon import AmazonScraper
 from scripts.scraper_playwright_runner import run_growth_batch
 from scripts.send_telegram import enviar_oferta, close_session
 from scripts.commands import poll_updates, get_all_products, load_custom
@@ -137,7 +139,12 @@ def check_and_mark(prod, seen):
     return None
 
 
-def _scrape_all():
+def _scrape_all() -> dict:
+    """Executa todos os scrapers e retorna resultados agrupados por termo.
+
+    Returns:
+        Dicionário com termos como chaves e listas de produtos como valores
+    """
     all_prods = get_all_products(PRODUTOS_MONITORADOS)
 
     all_terms = []
@@ -152,15 +159,18 @@ def _scrape_all():
 
     unique_terms = list(dict.fromkeys(all_terms))
 
+    # Scraping via Amazon (HTTP + cloudscraper)
+    amz_scraper = AmazonScraper()
     amz_results = {}
     for termo in unique_terms:
         amz_results[termo] = []
         try:
             pm = term_to_preco_max.get(termo, 999999)
-            amz_results[termo].extend(amz_buscar(termo, pm)[:MAX_PER_SCRAPER])
+            amz_results[termo].extend(amz_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
         except Exception as e:
             log.warning("Amazon falhou para '%s': %s", termo, e)
 
+    # Scraping via Growth (Playwright batch)
     pw_results = {}
     if growth_terms:
         try:
@@ -169,6 +179,7 @@ def _scrape_all():
         except Exception as e:
             log.warning("Growth batch falhou: %s", e)
 
+    # Combina resultados
     combined = {}
     for termo in unique_terms:
         combined[termo] = amz_results.get(termo, []) + pw_results.get(termo, [])

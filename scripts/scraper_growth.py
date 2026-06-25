@@ -1,13 +1,32 @@
+"""Scraper para Growth Suplementos.
+
+Utiliza Playwright com stealth para extrair preços via JSON-LD.
+"""
+
 import sys
 import os
-import re
-import json
-from scripts.browser_utils import BrowserManager
+import logging
+from typing import Optional
+
+# Adiciona o diretório pai ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from scripts.core.base_scraper import BaseScraper
+from scripts.core.price_parser import parse_preco
+from scripts.browser_utils import BrowserManager
 
-class GrowthScraper:
+log = logging.getLogger("bot-ofertas.growth")
+
+
+class GrowthScraper(BaseScraper):
+    """Scraper para Growth Suplementos."""
+
     def __init__(self):
+        super().__init__(
+            nome_loja="Growth",
+            emoji="💪",
+            dominio="gsuplementos.com.br"
+        )
         self.base_url = "https://www.gsuplementos.com.br"
         self.known_products = {
             "whey protein concentrado 1kg": "/whey-protein-concentrado-1kg-growth-supplements-p985936",
@@ -15,7 +34,39 @@ class GrowthScraper:
             "kit whey creatina": "/kit-whey-protein-concentrado-1kg-e-creatina-monohidratada-250g-growth-supplements",
         }
 
-    def scrape(self, product_names, context=None):
+    def buscar(self, termo: str, max_preco: Optional[float] = None) -> list:
+        """Busca produtos na Growth.
+
+        Args:
+            termo: Termo de busca
+            max_preco: Preço máximo para filtrar
+
+        Returns:
+            Lista de produtos encontrados
+        """
+        mgr = BrowserManager.get()
+        page = mgr.new_page()
+        ctx = page.context
+
+        try:
+            return self._scrape([termo], ctx, max_preco)
+        finally:
+            try:
+                page.close()
+            except Exception:
+                pass
+
+    def _scrape(self, product_names: list, context, max_preco: Optional[float]) -> list:
+        """Realiza o scraping de uma lista de produtos.
+
+        Args:
+            product_names: Lista de nomes de produtos para buscar
+            context: Contexto do Playwright
+            max_preco: Preço máximo para filtrar
+
+        Returns:
+            Lista de produtos encontrados
+        """
         products = []
         page = context.new_page()
 
@@ -35,16 +86,25 @@ class GrowthScraper:
                             if product:
                                 products.append(product)
                 except Exception as e:
-                    print(f"  Erro Growth busca '{name}': {e}")
+                    self.tratar_erro(f"Erro na busca '{name}'", e)
         finally:
             try:
                 page.close()
             except Exception:
                 pass
 
-        return products
+        return self.filtrar_por_preco(products, max_preco)
 
-    def _search_products(self, page, query):
+    def _search_products(self, page, query: str) -> list:
+        """Busca produtos por termo de pesquisa.
+
+        Args:
+            page: Página Playwright
+            query: Termo de busca
+
+        Returns:
+            Lista de URLs dos produtos encontrados
+        """
         urls = []
         search_url = f"{self.base_url}/busca?q={query}"
         page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
@@ -73,7 +133,16 @@ class GrowthScraper:
 
         return urls
 
-    def _scrape_product_page(self, page, url):
+    def _scrape_product_page(self, page, url: str) -> Optional[dict]:
+        """Extrai dados de uma página de produto via JSON-LD.
+
+        Args:
+            page: Página Playwright
+            url: URL do produto
+
+        Returns:
+            Dicionário com dados do produto ou None
+        """
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
             page.wait_for_timeout(3000)
@@ -101,7 +170,7 @@ class GrowthScraper:
             if isinstance(offers, list) and offers:
                 offers = offers[0]
 
-            price = float(offers.get("price", 0))
+            price = parse_preco(str(offers.get("price", 0)))
             if price <= 0:
                 return None
 
@@ -111,35 +180,36 @@ class GrowthScraper:
 
             name = json_ld.get("name", "")
 
-            return {
-                "nome": name,
-                "preco": price,
-                "imagem": image,
-                "url": url,
-                "loja": "Growth",
-            }
+            return self.criar_produto(
+                nome=name,
+                preco=price,
+                url=url,
+                imagem=image,
+            )
 
         except Exception as e:
-            print(f"  Erro Growth produto {url}: {e}")
+            self.tratar_erro(f"Erro ao scrape produto {url}", e)
             return None
 
 
-def buscar_produtos(termo, preco_maximo=None, page=None, context=None):
+# Função de conveniência para manter compatibilidade
+def buscar_produtos(termo: str, preco_maximo: float = None, page=None, context=None) -> list:
+    """Busca produtos na Growth (função de conveniência).
+
+    Args:
+        termo: Termo de busca
+        preco_maximo: Preço máximo para filtrar
+        page: Página Playwright (opcional)
+        context: Contexto Playwright (opcional)
+
+    Returns:
+        Lista de produtos encontrados
+    """
     scraper = GrowthScraper()
 
     if context is not None:
-        products = scraper.scrape([termo], context=context)
+        return scraper._scrape([termo], context, preco_maximo)
     elif page is not None:
-        ctx = page.context
-        products = scraper.scrape([termo], context=ctx)
+        return scraper._scrape([termo], page.context, preco_maximo)
     else:
-        mgr = BrowserManager.get()
-        page = mgr.new_page()
-        ctx = page.context
-        products = scraper.scrape([termo], context=ctx)
-        page.close()
-
-    if preco_maximo:
-        products = [p for p in products if p.get("preco", 0) <= preco_maximo]
-
-    return products
+        return scraper.buscar(termo, preco_maximo)
