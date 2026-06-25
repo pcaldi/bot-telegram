@@ -10,8 +10,6 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
-data/seen_products.json
-data/prices_history.json
 data/custom_products.json
 !data/.gitkeep
 
