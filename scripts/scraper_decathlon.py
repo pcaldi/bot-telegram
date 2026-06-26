@@ -87,7 +87,15 @@ class DecathlonScraper(BaseScraper):
         if len(texts) < 3:
             return None
 
-        name = texts[1] if len(texts) > 1 else texts[0]
+        name = ""
+        for t in texts:
+            if t.startswith("R$"):
+                continue
+            if len(t) > len(name):
+                name = t
+
+        if not name:
+            name = texts[1] if len(texts) > 1 else texts[0]
 
         # Busca o preço
         price_text = ""

@@ -129,6 +129,16 @@ def extrair_categoria(nome: str) -> str:
     """Extrai a categoria do produto baseado no nome."""
     nome_lower = nome.lower()
 
+    marcas_categorias = {
+        "Esportes": ["kipsta", "domyos", "kalenji", "quechua", "solognac", "tribord"],
+        "Casa": ["moulinex", "rowenta", "tefal"],
+    }
+
+    for categoria, marcas in marcas_categorias.items():
+        for marca in marcas:
+            if marca in nome_lower:
+                return categoria
+
     categorias = {
         "Tênis": ["tênis", "tenis", "sapato", "sneaker", "corrida", "running"],
         "Eletrônicos": ["fone", "mouse", "teclado", "monitor", "ssd", "notebook", "celular", "smartphone", "tablet", "headphone", "bluetooth"],
@@ -136,7 +146,7 @@ def extrair_categoria(nome: str) -> str:
         "Roupas": ["camisa", "camiseta", "calça", "shorts", "jaqueta", "moletom", "bermuda", "roupa"],
         "Acessórios": ["mochila", "bolsa", "cinto", "óculos", "relógio", "acessório", "bone", "chapeu"],
         "Casa": ["air fryer", "liquidificador", "aspirador", "cafeteira", "microondas", "ar condicionado", "ventilador"],
-        "Esportes": ["bola", "raquete", "epi", "capacete", "luva", "faixa", "toalha"],
+        "Esportes": ["bola", "raquete", "epi", "capacete", "luva", "faixa", "toalha", "futebol", "basquete", "vôlei", "handebol"],
     }
 
     for categoria, palavras in categorias.items():
