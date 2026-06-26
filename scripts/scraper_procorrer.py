@@ -62,9 +62,9 @@ class ProcorrerScraper(BaseScraper):
         soup = BeautifulSoup(html, "lxml")
         produtos = []
 
-        items = soup.select("div.product-card, div[class*=product], li.product-item")
+        items = soup.select(".js-item-product, .item-product")
         if not items:
-            items = soup.select("a[href*='/product'], a[href*='/produto']")
+            items = soup.select("div[class*=product]")
 
         for item in items[:10]:
             try:
@@ -92,9 +92,15 @@ class ProcorrerScraper(BaseScraper):
 
         name = ""
         for t in texts:
-            if len(t) > 10 and "R$" not in t:
-                name = t.strip()
+            if t.isupper() and len(t) > 10 and "R$" not in t:
+                name = t.strip().title()
                 break
+
+        if not name:
+            for t in texts:
+                if len(t) > 10 and "R$" not in t and t.lower() not in ("comprar", "cor", "tamanho", "ver"):
+                    name = t.strip()
+                    break
 
         if not name:
             name_el = item.select_one("h2, h3, h4, span[class*=name], span[class*=title]")
@@ -105,19 +111,46 @@ class ProcorrerScraper(BaseScraper):
             return None
 
         price_text = ""
-        for t in texts:
+        prices = []
+        for i, t in enumerate(texts):
             if "R$" in t:
-                price_text = t
-                break
+                try:
+                    val = parse_preco(t)
+                    if val > 0:
+                        prev = texts[i - 1].strip() if i > 0 else ""
+                        nxt = texts[i + 1].strip() if i + 1 < len(texts) else ""
+                        is_installment = (
+                            re.match(r'^\d+\s*x$', prev.lower())
+                            or re.match(r'^x\s*\d+$', prev.lower())
+                            or "juros" in nxt.lower()
+                            or "parcela" in nxt.lower()
+                        )
+                        if is_installment:
+                            continue
+                        prices.append((t, val))
+                except Exception:
+                    pass
 
-        if not price_text:
+        if not prices:
             return None
 
-        preco = parse_preco(price_text)
+        preco_antigo = None
+        preco = 0
+        for t, val in prices:
+            if val == 0:
+                continue
+            if preco == 0:
+                preco = val
+            elif val > preco and preco_antigo is None:
+                preco_antigo = val
+            elif val < preco:
+                preco_antigo = preco
+                preco = val
+
         if preco <= 0:
             return None
 
-        link_el = item.select_one("a[href]") if item.name != "a" else item
+        link_el = item.select_one("a[href*='/produtos/']") or item.select_one("a[href]")
         if not link_el:
             return None
         href = link_el.get("href", "")
@@ -130,18 +163,8 @@ class ProcorrerScraper(BaseScraper):
         img_el = item.select_one("img")
         if img_el:
             imagem = img_el.get("src", "") or img_el.get("data-src", "")
-
-        preco_antigo = None
-        for t in texts:
-            if "R$" in t and t != price_text:
-                try:
-                    old_text = re.sub(r'[^\d.,]', '', t).replace(".", "").replace(",", ".")
-                    preco_antigo = float(old_text)
-                    if preco_antigo <= preco:
-                        preco_antigo = None
-                except ValueError:
-                    preco_antigo = None
-                break
+            if imagem and imagem.startswith("//"):
+                imagem = f"https:{imagem}"
 
         return self.criar_produto(
             nome=name[:100],
