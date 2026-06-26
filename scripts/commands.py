@@ -15,16 +15,29 @@ KNOWN_STORES = {"amazon", "growth", "procorrer", "decathlon"}
 
 CATEGORY_COMMANDS = {
     "/corrida": {
-        "termos": ["tênis corrida", "tênis nike corrida"],
+        "termos": ["tênis corrida", "shorts corrida", "relógio gps corrida", "camiseta corrida", "meia corrida"],
         "lojas": ["Amazon", "Procorrer", "Decathlon"],
     },
     "/suplementos": {
-        "termos": ["whey protein", "creatina"],
+        "termos": ["whey protein", "creatina", "bcaa", "glutamina", "vitamina d", "vitamina c", "multivitamínico"],
         "lojas": ["Amazon", "Growth"],
     },
     "/eletronicos": {
-        "termos": ["fone bluetooth", "mouse gamer"],
+        "termos": ["fone bluetooth", "monitor 24 polegadas", "monitor 27 polegadas", "tv 4k", "robo aspirador"],
         "lojas": ["Amazon"],
+    },
+    
+    "/casa": {
+        "termos": ["air fryer", "aspirador robot", "cafeteira", "liquidificador"],
+        "lojas": ["Amazon"],
+    },
+    "/esportes": {
+        "termos": ["bola futebol", "raquete tênis", "luva boxe", "capacete bike"],
+        "lojas": ["Amazon", "Decathlon"],
+    },
+    "/tenis": {
+        "termos": ["tênis nike", "tênis adidas", "tênis asics", "tênis olympikus", "tênis mizuno", "tênis puma", "tênis new balance", "tênis under armour", "tênis saucony", "tênis brooks", "tênis salomon", "tênis hoka", "tênis reebok", "tênis fila", "tênis vans","tênis on"],
+        "lojas": ["Amazon", "Procorrer", "Decathlon"],
     },
 }
 
@@ -289,9 +302,12 @@ async def handle_message(token: str, message: dict):
                   "/list — Listar produtos custom\n"
                   "/status — Ver estatísticas do bot\n"
                   "/search &lt;termo&gt; [loja] — Buscar ofertas\n"
-                  "/corrida — Ofertas de tênis de corrida\n"
+                  "/corrida — Ofertas de corrida\n"
                   "/suplementos — Ofertas de suplementos\n"
                   "/eletronicos — Ofertas de eletrônicos\n"
+                  "/casa — Ofertas de casa\n"
+                  "/esportes — Ofertas de esportes\n"
+                  "/tenis — Ofertas de tênis\n"
                   "/help — Esta ajuda",
         "/help": "Comandos:\n"
                  "/add &lt;termo&gt; [preco_max] — Ex: /add air fryer 500\n"
@@ -300,9 +316,12 @@ async def handle_message(token: str, message: dict):
                  "/status — Ver estatísticas\n"
                  "/search &lt;termo&gt; [loja] — Ex: /search nike air max\n"
                  "  Lojas: amazon, growth, procorrer, decathlon\n"
-                 "/corrida — Tênis de corrida\n"
-                 "/suplementos — Whey, creatina, etc\n"
-                 "/eletronicos — Fones, mouse, etc",
+                 "/corrida — Tênis, shorts, relógio, camiseta, meia\n"
+                 "/suplementos — Whey, creatina, bcaa, vitaminas\n"
+                 "/eletronicos — Fones, monitores, tv, robo aspirador\n"
+                 "/casa — Air fryer, aspirador, cafeteira, liquidificador\n"
+                 "/esportes — Bola, raquete, luva, capacete\n"
+                 "/tenis — Nike, Adidas, Asics, Mizuno, etc",
     }
 
     if command in static_responses:
