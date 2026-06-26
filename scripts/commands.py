@@ -3,10 +3,30 @@ import os
 import logging
 import aiohttp
 import asyncio
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.core.database import Database
 
 log = logging.getLogger("bot-ofertas")
+
+KNOWN_STORES = {"amazon", "growth", "procorrer", "decathlon"}
+
+CATEGORY_COMMANDS = {
+    "/corrida": {
+        "termos": ["tênis corrida", "tênis nike corrida"],
+        "lojas": ["Amazon", "Procorrer", "Decathlon"],
+    },
+    "/suplementos": {
+        "termos": ["whey protein", "creatina"],
+        "lojas": ["Amazon", "Growth"],
+    },
+    "/eletronicos": {
+        "termos": ["fone bluetooth", "mouse gamer"],
+        "lojas": ["Amazon"],
+    },
+}
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 CUSTOM_FILE = os.path.join(DATA_DIR, "custom_products.json")
@@ -143,6 +163,112 @@ def _handle_status() -> str:
     )
 
 
+def _get_scrapers(lojas: list = None):
+    """Retorna instâncias de scrapers filtradas por loja."""
+    from scripts.scraper_amazon import AmazonScraper
+    from scripts.scraper_procorrer import ProcorrerScraper
+    from scripts.scraper_decathlon import DecathlonScraper
+    from scripts.scraper_playwright_runner import run_growth_batch
+
+    all_scrapers = {
+        "Amazon": lambda: AmazonScraper(),
+        "Procorrer": lambda: ProcorrerScraper(),
+        "Decathlon": lambda: DecathlonScraper(),
+    }
+
+    if lojas:
+        return {k: v for k, v in all_scrapers.items() if k in lojas}, run_growth_batch
+    return all_scrapers, run_growth_batch
+
+
+def _run_scrapers_sync(termos: list, lojas: list = None, max_por_scraper: int = 3) -> list:
+    """Executa scrapers de forma síncrona e retorna todos os produtos encontrados."""
+    from scripts.main import dedup_produtos
+    scrapers, run_growth = _get_scrapers(lojas)
+    results = []
+
+    for termo in termos:
+        for nome_loja, scraper_fn in scrapers.items():
+            try:
+                scraper = scraper_fn()
+                produtos = scraper.buscar(termo, None)[:max_por_scraper]
+                results.extend(produtos)
+            except Exception as e:
+                log.warning("Scraper %s falhou para '%s': %s", nome_loja, termo, e)
+
+        if lojas is None or "Growth" in lojas:
+            try:
+                growth_results = run_growth([termo], None, max_por_scraper)
+                for termo_r, prods in growth_results.items():
+                    results.extend(prods)
+            except Exception as e:
+                log.warning("Growth falhou para '%s': %s", termo, e)
+
+    return dedup_produtos(results)
+
+
+async def _handle_search(token: str, chat_id: int, args: str):
+    """Busca produtos nos scrapers existentes."""
+    if not args.strip():
+        await _send_message(token, chat_id, "Uso: /search &lt;termo&gt; [loja]\n"
+                            "Lojas: amazon, growth, procorrer, decathlon\n"
+                            "Ex: /search nike air max")
+        return
+
+    parts = args.strip().split()
+    loja_filter = None
+    if parts[-1].lower() in KNOWN_STORES:
+        loja_filter = parts.pop().title()
+
+    termo = " ".join(parts)
+    if not termo:
+        await _send_message(token, chat_id, "Informe um termo de busca.")
+        return
+
+    await _send_message(token, chat_id, f"🔍 Buscando <b>{termo}</b>"
+                        + (f" na <b>{loja_filter}</b>" if loja_filter else "") + "...")
+
+    loop = asyncio.get_running_loop()
+    lojas_list = [loja_filter] if loja_filter else None
+    produtos = await loop.run_in_executor(None, _run_scrapers_sync, [termo], lojas_list, 3)
+
+    if not produtos:
+        await _send_message(token, chat_id, "Nenhum resultado encontrado.")
+        return
+
+    await _send_message(token, chat_id, f"📦 {len(produtos)} resultado(s) encontrado(s):")
+
+    for prod in produtos[:10]:
+        from scripts.send_telegram import formatar_oferta
+        texto = formatar_oferta(prod)
+        await _send_message(token, chat_id, texto)
+        await asyncio.sleep(2)
+
+
+async def _handle_category(token: str, chat_id: int, category_key: str):
+    """Busca produtos de uma categoria pré-definida."""
+    cat = CATEGORY_COMMANDS[category_key]
+    termos = cat["termos"]
+    lojas = cat["lojas"]
+
+    await _send_message(token, chat_id, f"🔍 Buscando ofertas de <b>{category_key[1:]}</b>...")
+
+    loop = asyncio.get_running_loop()
+    produtos = await loop.run_in_executor(None, _run_scrapers_sync, termos, lojas, 3)
+
+    if not produtos:
+        await _send_message(token, chat_id, "Nenhum resultado encontrado para esta categoria.")
+        return
+
+    await _send_message(token, chat_id, f"📦 {len(produtos)} resultado(s):")
+
+    for prod in produtos[:10]:
+        from scripts.send_telegram import formatar_oferta
+        texto = formatar_oferta(prod)
+        await _send_message(token, chat_id, texto)
+        await asyncio.sleep(2)
+
+
 async def handle_message(token: str, message: dict):
     global _offset
 
@@ -162,12 +288,21 @@ async def handle_message(token: str, message: dict):
                   "/remove &lt;id&gt; — Remover produto\n"
                   "/list — Listar produtos custom\n"
                   "/status — Ver estatísticas do bot\n"
+                  "/search &lt;termo&gt; [loja] — Buscar ofertas\n"
+                  "/corrida — Ofertas de tênis de corrida\n"
+                  "/suplementos — Ofertas de suplementos\n"
+                  "/eletronicos — Ofertas de eletrônicos\n"
                   "/help — Esta ajuda",
         "/help": "Comandos:\n"
                  "/add &lt;termo&gt; [preco_max] — Ex: /add air fryer 500\n"
                  "/remove &lt;número ou id&gt; — Ex: /remove 3\n"
                  "/list — Ver produtos adicionados\n"
-                 "/status — Ver estatísticas",
+                 "/status — Ver estatísticas\n"
+                 "/search &lt;termo&gt; [loja] — Ex: /search nike air max\n"
+                 "  Lojas: amazon, growth, procorrer, decathlon\n"
+                 "/corrida — Tênis de corrida\n"
+                 "/suplementos — Whey, creatina, etc\n"
+                 "/eletronicos — Fones, mouse, etc",
     }
 
     if command in static_responses:
@@ -180,6 +315,10 @@ async def handle_message(token: str, message: dict):
         await _send_message(token, chat_id, _handle_add(args))
     elif command == "/remove":
         await _send_message(token, chat_id, _handle_remove(args))
+    elif command == "/search":
+        await _handle_search(token, chat_id, args)
+    elif command in CATEGORY_COMMANDS:
+        await _handle_category(token, chat_id, command)
 
 
 async def poll_updates(token: str, interval: int = 5):
