@@ -6,11 +6,11 @@ except ImportError:
     pass
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-if not TELEGRAM_BOT_TOKEN:
+if not TELEGRAM_BOT_TOKEN and not os.getenv("TESTING"):
     raise ValueError("TELEGRAM_BOT_TOKEN não configurado. Adicione no .env ou nos secrets do GitHub Actions.")
 
-CANAL_ID = int(os.environ["CANAL_ID"])
-GRUPO_ID = int(os.environ["GRUPO_ID"])
+CANAL_ID = int(os.getenv("CANAL_ID", "0"))
+GRUPO_ID = int(os.getenv("GRUPO_ID", "0"))
 
 PRODUTOS_MONITORADOS = [
     # ==================== TÊNIS ====================
