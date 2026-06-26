@@ -202,7 +202,7 @@ def formatar_oferta(produto: dict) -> str:
     if preco_antigo and preco_antigo > preco:
         desconto = int((1 - preco / preco_antigo) * 100)
         economia = preco_antigo - preco
-        linhas.append(f"~~De <b>{formatar_preco(preco_antigo)}</b>~~")
+        linhas.append(f"<s>De <b>{formatar_preco(preco_antigo)}</b></s>")
         linhas.append(f"✅ Por <b>{formatar_preco(preco)}</b>  <b>-{desconto}%</b>")
         linhas.append(f"💰 Economia: <b>{formatar_preco(economia)}</b>")
     else:
