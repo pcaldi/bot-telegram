@@ -12,13 +12,14 @@ Este documento descreve as melhorias planejadas para o bot de ofertas de Telegra
 |---|---|---|
 | Amazon scraper | ✅ Funciona | cloudscraper + imagens |
 | Growth scraper | ✅ Funciona | Playwright batch + JSON-LD |
-| Procorrer scraper | ✅ Funciona | Playwright + stealth |
+| Procorrer scraper | ⚠️ Corrigido | Playwright + stealth (HTML mudou, preços corrigidos) |
 | Decathlon scraper | ✅ Funciona | Playwright + stealth |
-| Telegram commands | ✅ Funciona | /add, /remove, /list |
+| Telegram commands | ✅ Funciona | 12 comandos (/add, /search, /corrida, etc) |
 | GitHub Actions | ✅ Funciona | cron 1h + cache + testes |
 | Deduplication | ✅ Funciona | URL + nome |
 | Price tracking | ✅ Funciona | SQLite (ofertas.db) |
-| Testes | ✅ Funciona | 101 testes (pytest) |
+| Testes | ✅ Funciona | 116 testes (pytest) |
+| Categorias | ✅ Funciona | /corrida, /suplementos, /eletronicos, /casa, /esportes, /tenis |
 
 ---
 
@@ -544,7 +545,129 @@ pytest -v
 
 ---
 
-## Resumo de Impacto
+## Fase 6: Correções Pendentes (Procorrer)
+
+**Prioridade:** Alta | **Esforço:** 2-3h | **Impacto:** Alto
+
+### Problema
+- Foto da Procorrer não carrega (URL pode ser placeholder)
+- Mensagem não mostra parcelamento, preço PIX nem tamanhos
+- Formatação usava `~~` (Markdown) em vez de `<s>` (HTML)
+
+### Melhorias
+
+| Item | Mudança |
+|------|---------|
+| Foto Procorrer | Testar atributos `data-src`, `data-lazy-src`, `data-original`; filtrar placeholders `data:` |
+| Parcelamento | Extrair `"9x de R$111,10 sem juros"` do HTML |
+| Preço PIX | Detectar label "PIX" nos textos e salvar separado |
+| Tamanhos | Extrair números após "Tamanho" no HTML |
+| `criar_produto()` | +3 params: `preco_pix`, `parcelamento`, `tamanhos` |
+| `formatar_oferta()` | Adicionar linhas: ⚡ PIX, 💳 Parcelamento, 📏 Tamanhos |
+| Banco SQLite | +3 colunas na tabela `ofertas` |
+
+### Arquivos Alterados
+- `scripts/core/base_scraper.py` → +3 params em `criar_produto()`
+- `scripts/scraper_procorrer.py` → extrair novos campos + melhorar imagem
+- `scripts/send_telegram.py` → +campos na mensagem + validação URL
+- `scripts/core/database.py` → +3 colunas no schema
+- `scripts/main.py` → passar novos campos em `check_and_mark()`
+- `tests/test_scraper_procorrer.py` → testes para novos campos
+- `tests/test_send_telegram.py` → testes para formatação
+
+---
+
+## Fase 7: Scraper Mercado Livre
+
+**Prioridade:** Média | **Esforço:** 2-3h | **Impacto:** Alto
+
+### Por que Mercado Livre?
+- Maior marketplace do Brasil
+- **Não precisa de Playwright** — funciona com HTTP simples
+- Server-side rendering (produtos já vêm no HTML)
+- Anti-bot básico (rate limiting)
+
+### Implementação
+
+#### Novo arquivo: `scripts/scraper_mercadolivre.py`
+
+```python
+class MercadoLivreScraper(BaseScraper):
+    def __init__(self):
+        super().__init__(
+            nome_loja="Mercado Livre",
+            emoji="🟠",
+            dominio="mercadolivre.com.br"
+        )
+        self.scraper = cloudscraper.create_scraper()
+
+    def buscar(self, termo, max_preco=None):
+        url = f"https://lista.mercadolivre.com.br/{termo.replace(' ', '-')}"
+        resp = self.scraper.get(url, timeout=15)
+        soup = BeautifulSoup(resp.text, "lxml")
+        # Seletores: .ui-search-item__title, .price-tag-fraction, etc
+```
+
+#### Integração
+- `config.py` → adicionar produtos ML em `PRODUTOS_MONITORADOS`
+- `commands.py` → `"Mercado Livre"` no `KNOWN_STORES`
+- `send_telegram.py` → emoji e domínio para ML
+- `main.py` → adicionar `MercadoLivreScraper` ao `_scrape_all()`
+
+### Dependências
+- Não precisa de pacote novo — já temos `cloudscraper` e `beautifulsoup4`
+
+### Arquivos Criados
+- `scripts/scraper_mercadolivre.py`
+
+### Arquivos Alterados
+- `config.py`
+- `scripts/commands.py`
+- `scripts/send_telegram.py`
+- `scripts/main.py`
+
+---
+
+## Fase 8: Dashboard Web (Flask)
+
+**Prioridade:** Média | **Esforço:** 3-4h | **Impacto:** Alto (visualização)
+
+### Stack
+- Flask (leve, Python)
+- SQLite (banco existente)
+- Chart.js (CDN, gráficos)
+- HTML/Jinja2
+
+### Funcionalidades
+
+| Rota | Descrição |
+|------|-----------|
+| `/` | Página principal com lista de ofertas |
+| `/produto/<id>` | Detalhe do produto + gráfico de preços |
+| `/api/ofertas` | JSON com todas as ofertas |
+| `/api/historico/<id>` | JSON com histórico de preços |
+| `/api/stats` | Estatísticas gerais |
+
+### Filtros
+- Por loja
+- Por categoria
+- Por faixa de preço
+- Por período
+
+### Arquivos Criados
+- `scripts/dashboard.py`
+- `scripts/templates/dashboard.html`
+- `scripts/templates/produto.html`
+
+### Como rodar
+```bash
+python scripts/dashboard.py
+# Acesse: http://localhost:5000
+```
+
+---
+
+## Resumo de Impacto (Atualizado)
 
 | Fase | Tempo | Impacto Usuário | Impacto Código |
 |---|---|---|---|
@@ -553,8 +676,11 @@ pytest -v
 | Procorrer | 2-3 dias | ⭐⭐ Médio | ⭐⭐ Médio |
 | Refatoração | 3-5 dias | ⭐ Baixo | ⭐⭐⭐ Alto |
 | Testes | 2-3 dias | ⭐ Baixo | ⭐⭐⭐ Alto |
+| **Correções Procorrer** | **2-3h** | **⭐⭐ Médio** | **⭐ Baixo** |
+| **Mercado Livre** | **2-3h** | **⭐⭐⭐ Alto** | **⭐⭐ Médio** |
+| **Dashboard Web** | **3-4h** | **⭐⭐⭐ Alto** | **⭐⭐ Médio** |
 
-**Total estimado:** 10-16 dias de trabalho
+**Total original:** 10-16 dias | **Total novo:** +7-10h (Fases 6-8)
 
 ---
 
@@ -562,24 +688,23 @@ pytest -v
 
 | Site | Proteção | Necessário | Sucesso Estimado |
 |---|---|---|---|
-| Mercado Livre | Cloudflare v2 + ML | Proxy residencial | 30-40% |
+| Magazine Luiza | PerimeterX/ShieldSquare | Proxy residencial + Playwright | 40-50% |
+| Shopee | ML + fingerprinting | Anti-detect browser + CAPTCHA + proxy | 20-30% |
 | Centauro | Enterprise anti-bot | Proxy residencial | 40-50% |
 | Netshoes | Akamai + TLS | Proxy mobile | 30-40% |
 
-**Nota:** Esses sites requerem investimento em infraestrutura (proxies residenciais) para funcionar. Não são viáveis sem gasto.
+**Nota:** Mercado Livre é o único viável sem proxy. Os demais requerem investimento em infraestrutura.
 
 ---
 
 ## Decisões Pendentes
 
-1. **SQLite vs PostgreSQL:** SQLite é mais simples para projeto pessoal. PostgreSQL para escala futura.
-
-2. **Refatorar antes ou depois:** Refatorar antes facilita adicionar novos sites. Depois pode gerar mais trabalho.
-
-3. **Procorrer primeiro:** É o site mais viável para adicionar agora.
-
-4. **Testes primeiro ou depois:** Testes podem ser feitos antes (TDD) ou depois (para garantir).
+1. ~~SQLite vs PostgreSQL~~ → SQLite (decidido)
+2. ~~Refatar antes ou depois~~ → Refatorado (Fase 4)
+3. ~~Procorrer primeiro~~ → Implementado (Fase 3 + correções Fase 6)
+4. **Dashboard:** Flask simples ou Streamlit? → Flask (decidido)
+5. **Mercado Livre:** Implementar agora ou depois do dashboard? → ML primeiro
 
 ---
 
-*Documento atualizado em: 2026-06-25*
+*Documento atualizado em: 2026-06-30*
