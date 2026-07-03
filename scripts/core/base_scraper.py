@@ -58,6 +58,9 @@ class BaseScraper(ABC):
         preco_antigo: Optional[float] = None,
         imagem: Optional[str] = None,
         frete: Optional[str] = None,
+        preco_pix: Optional[float] = None,
+        parcelamento: Optional[str] = None,
+        tamanhos: Optional[list] = None,
     ) -> dict:
         """Cria um dicionário de produto padronizado.
 
@@ -68,6 +71,9 @@ class BaseScraper(ABC):
             preco_antigo: Preço anterior (opcional)
             imagem: URL da imagem (opcional)
             frete: Informação de frete (opcional)
+            preco_pix: Preço no PIX (opcional)
+            parcelamento: Informação de parcelamento (ex: "10x de R$29,90")
+            tamanhos: Lista de tamanhos disponíveis (opcional)
 
         Returns:
             Dicionário com os dados do produto
@@ -80,6 +86,9 @@ class BaseScraper(ABC):
             "loja": self.nome_loja,
             "imagem": imagem or "",
             "frete": frete or "Consulta",
+            "preco_pix": preco_pix,
+            "parcelamento": parcelamento,
+            "tamanhos": tamanhos or [],
         }
 
     def filtrar_por_preco(self, produtos: list, max_preco: Optional[float]) -> list:

@@ -6,6 +6,7 @@ e controle de ofertas enviadas ao Telegram.
 
 import sqlite3
 import os
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
@@ -25,6 +26,9 @@ CREATE TABLE IF NOT EXISTS ofertas (
     url TEXT,
     imagem TEXT,
     categoria TEXT,
+    preco_pix REAL,
+    parcelamento TEXT,
+    tamanhos TEXT,
     primeira_vista TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ultima_vista TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -71,9 +75,23 @@ class Database:
         self._criar_tabelas()
 
     def _criar_tabelas(self):
-        """Cria as tabelas do schema."""
+        """Cria as tabelas do schema e aplica migrações."""
         self.conn.executescript(SCHEMA_SQL)
+        self._migrar_colunas()
         self.conn.commit()
+
+    def _migrar_colunas(self):
+        """Adiciona colunas novas se não existirem (migração automática)."""
+        cursor = self.conn.execute("PRAGMA table_info(ofertas)")
+        colunas = {row[1] for row in cursor.fetchall()}
+        novas_colunas = [
+            ("preco_pix", "REAL"),
+            ("parcelamento", "TEXT"),
+            ("tamanhos", "TEXT"),
+        ]
+        for nome, tipo in novas_colunas:
+            if nome not in colunas:
+                self.conn.execute(f"ALTER TABLE ofertas ADD COLUMN {nome} {tipo}")
 
     def close(self):
         """Fecha a conexão com o banco."""
@@ -96,11 +114,16 @@ class Database:
         now = datetime.now().isoformat()
         existing = self.buscar_oferta(pid)
 
+        tamanhos = produto.get("tamanhos", existing.get("tamanhos") if existing else None)
+        if isinstance(tamanhos, list):
+            tamanhos = json.dumps(tamanhos)
+
         if existing:
             self.conn.execute(
                 """UPDATE ofertas
                    SET preco_atual=?, preco_antigo=?, nome=?, url=?, imagem=?,
-                       categoria=?, ultima_vista=?
+                       categoria=?, preco_pix=?, parcelamento=?, tamanhos=?,
+                       ultima_vista=?
                    WHERE produto_id=?""",
                 (
                     produto.get("preco_atual", existing["preco_atual"]),
@@ -109,6 +132,9 @@ class Database:
                     produto.get("url", existing.get("url")),
                     produto.get("imagem", existing.get("imagem")),
                     produto.get("categoria", existing.get("categoria")),
+                    produto.get("preco_pix", existing.get("preco_pix")),
+                    produto.get("parcelamento", existing.get("parcelamento")),
+                    tamanhos,
                     now,
                     pid,
                 ),
@@ -119,8 +145,9 @@ class Database:
             self.conn.execute(
                 """INSERT INTO ofertas
                    (produto_id, nome, preco_atual, preco_antigo, loja, url, imagem,
-                    categoria, primeira_vista, ultima_vista)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    categoria, preco_pix, parcelamento, tamanhos,
+                    primeira_vista, ultima_vista)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     pid,
                     produto.get("nome", ""),
@@ -130,6 +157,9 @@ class Database:
                     produto.get("url"),
                     produto.get("imagem"),
                     produto.get("categoria"),
+                    produto.get("preco_pix"),
+                    produto.get("parcelamento"),
+                    tamanhos,
                     now,
                     now,
                 ),
@@ -149,7 +179,16 @@ class Database:
         row = self.conn.execute(
             "SELECT * FROM ofertas WHERE produto_id=?", (produto_id,)
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        result = dict(row)
+        tamanhos = result.get("tamanhos")
+        if tamanhos and isinstance(tamanhos, str):
+            try:
+                result["tamanhos"] = json.loads(tamanhos)
+            except (json.JSONDecodeError, TypeError):
+                result["tamanhos"] = []
+        return result
 
     def atualizar_preco(self, produto_id: str, preco: float) -> bool:
         """Atualiza o preço de uma oferta e registra no histórico.

@@ -1,0 +1,6 @@
+{
+  "pythonVersion": "3.12.8",
+  "venvPath": "/home/paulo/.pyenv/versions",
+  "typeCheckingMode": "off",
+  "reportMissingImports": false
+}

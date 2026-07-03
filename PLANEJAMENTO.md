@@ -18,7 +18,7 @@ Este documento descreve as melhorias planejadas para o bot de ofertas de Telegra
 | GitHub Actions | ✅ Funciona | cron 1h + cache + testes |
 | Deduplication | ✅ Funciona | URL + nome |
 | Price tracking | ✅ Funciona | SQLite (ofertas.db) |
-| Testes | ✅ Funciona | 116 testes (pytest) |
+| Testes | ✅ Funciona | 134 testes (pytest) |
 | Categorias | ✅ Funciona | /corrida, /suplementos, /eletronicos, /casa, /esportes, /tenis |
 
 ---
@@ -545,7 +545,7 @@ pytest -v
 
 ---
 
-## Fase 6: Correções Pendentes (Procorrer)
+## Fase 6: Correções Pendentes (Procorrer) ✅
 
 **Prioridade:** Alta | **Esforço:** 2-3h | **Impacto:** Alto
 
@@ -565,15 +565,6 @@ pytest -v
 | `criar_produto()` | +3 params: `preco_pix`, `parcelamento`, `tamanhos` |
 | `formatar_oferta()` | Adicionar linhas: ⚡ PIX, 💳 Parcelamento, 📏 Tamanhos |
 | Banco SQLite | +3 colunas na tabela `ofertas` |
-
-### Arquivos Alterados
-- `scripts/core/base_scraper.py` → +3 params em `criar_produto()`
-- `scripts/scraper_procorrer.py` → extrair novos campos + melhorar imagem
-- `scripts/send_telegram.py` → +campos na mensagem + validação URL
-- `scripts/core/database.py` → +3 colunas no schema
-- `scripts/main.py` → passar novos campos em `check_and_mark()`
-- `tests/test_scraper_procorrer.py` → testes para novos campos
-- `tests/test_send_telegram.py` → testes para formatação
 
 ---
 

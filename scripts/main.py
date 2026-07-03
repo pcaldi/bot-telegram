@@ -126,6 +126,9 @@ def check_and_mark(prod: dict, db: Database) -> Optional[str]:
             "url": prod.get("url"),
             "imagem": prod.get("imagem"),
             "categoria": prod.get("categoria"),
+            "preco_pix": prod.get("preco_pix"),
+            "parcelamento": prod.get("parcelamento"),
+            "tamanhos": prod.get("tamanhos"),
         })
         db.salvar_historico(pid, preco_atual)
         return "nova"
@@ -241,6 +244,12 @@ async def executar_scrapers():
             for prod in produtos[:MAX_PER_PRODUTO]:
                 tipo = check_and_mark(prod, db)
                 if tipo:
+                    url_valida = prod.get("url", "") and prod.get("url_valido") is not False
+                    tem_imagem = bool(prod.get("imagem", ""))
+                    if not url_valida and not tem_imagem:
+                        log.info("Pulando produto sem link/imagem: %s", prod.get("nome", "")[:50])
+                        continue
+
                     pid = gerar_id(prod)
                     menor_preco = db.buscar_menor_preco(pid)
                     if menor_preco is not None and prod["preco"] <= menor_preco:

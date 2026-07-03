@@ -103,6 +103,43 @@ async def enviar_foto(url_foto: str, caption: str, chat_id: int = CANAL_ID):
     return True
 
 
+def validar_produto(produto: dict) -> dict:
+    """Valida e corrige dados do produto antes do envio.
+
+    Verifica se URL e imagem são válidas. Remove placeholders e URLs truncadas.
+    """
+    url = produto.get("url", "")
+
+    if not url or not url.startswith(("http://", "https://")):
+        produto["url_valido"] = False
+    elif len(url) < 20:
+        produto["url_valido"] = False
+    else:
+        produto["url_valido"] = True
+
+    imagem = produto.get("imagem", "")
+    if imagem:
+        if imagem.startswith("data:") or imagem.startswith("javascript:"):
+            produto["imagem"] = ""
+        elif not imagem.startswith(("http://", "https://", "//")):
+            produto["imagem"] = ""
+        elif imagem.startswith("//"):
+            produto["imagem"] = f"https:{imagem}"
+
+    return produto
+
+
+async def verificar_url(url: str) -> bool:
+    """Verifica se URL retorna 200 via HEAD request."""
+    try:
+        session = _get_session()
+        async with session.head(url, timeout=aiohttp.ClientTimeout(total=5),
+                                allow_redirects=True) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
 def extrair_marca(nome: str) -> str:
     marcas = {
         "nike": "Nike", "adidas": "Adidas", "puma": "Puma",
@@ -213,16 +250,49 @@ def formatar_oferta(produto: dict) -> str:
         linhas.append("")
         linhas.append("🏆 <b>Menor preço já visto!</b>")
 
+    # PIX
+    preco_pix = produto.get("preco_pix")
+    if preco_pix and preco_pix < preco:
+        linhas.append(f"💸 <b>no PIX: {formatar_preco(preco_pix)}</b>")
+
+    # Parcelamento
+    parcelamento = produto.get("parcelamento")
+    if parcelamento:
+        linhas.append(f"📅 <b>{parcelamento}</b>")
+
+    # Tamanhos
+    tamanhos = produto.get("tamanhos", [])
+    if tamanhos:
+        linhas.append(f"📐 Tamanhos: {', '.join(tamanhos)}")
+
     linhas.append("")
 
     # Loja e link
     linhas.append(f"{emoji_loja} <b>{loja}</b>")
-    linhas.append(f"🔗 <a href='{url}'>Comprar agora</a>")
+    if produto.get("url_valido", True):
+        linhas.append(f"🔗 <a href='{url}'>Comprar agora</a>")
+    else:
+        linhas.append("⚠️ Link indisponível")
 
     return "\n".join(linhas)
 
 
 async def enviar_oferta(produto: dict):
+    produto = validar_produto(produto)
+
+    url_valida = produto.get("url_valido", True) and produto.get("url", "")
+    tem_imagem = bool(produto.get("imagem", ""))
+
+    if not url_valida and not tem_imagem:
+        log.warning("Produto sem link e sem imagem, ignorado: %s", produto.get("nome", "")[:50])
+        return False
+
+    if produto.get("tipo") == "nova" and url_valida:
+        url_ok = await verificar_url(produto["url"])
+        if not url_ok:
+            log.warning("Link quebrado: %s", produto["url"])
+            produto["url_valido"] = False
+
     texto = formatar_oferta(produto)
     imagem = produto.get("imagem", "")
     if imagem:

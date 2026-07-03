@@ -66,19 +66,19 @@
 - [x] Adicionar pytest-asyncio para testes async
 - [x] Expandir termos de busca (16 marcas de tênis, vitaminas, etc)
 
-## Fase 8: Correções Procorrer (Pendente)
+## Fase 8: Correções Procorrer ✅
 
-- [ ] Corrigir seletor CSS (`.js-item-product` em vez de `div.product-card`)
-- [ ] Corrigir extração de preço (ignorar parcelas, pegar preço à vista)
-- [ ] Melhorar extração de imagem (testar data-src, data-lazy-src)
-- [ ] Adicionar `preco_pix` em `criar_produto()`
-- [ ] Adicionar `parcelamento` em `criar_produto()`
-- [ ] Adicionar `tamanhos` em `criar_produto()`
-- [ ] Atualizar `formatar_oferta()` com novos campos
-- [ ] Adicionar colunas no banco SQLite
-- [ ] Atualizar `check_and_mark()` em `main.py`
-- [ ] Corrigir strikethrough (`~~` → `<s>`)
-- [ ] Adicionar testes para novos campos
+- [x] Corrigir seletor CSS (`.js-item-product` em vez de `div.product-card`)
+- [x] Corrigir extração de preço (ignorar parcelas, pegar preço à vista)
+- [x] Melhorar extração de imagem (data-src, data-lazy-src, data-original, filtra data:)
+- [x] Adicionar `preco_pix` em `criar_produto()`
+- [x] Adicionar `parcelamento` em `criar_produto()`
+- [x] Adicionar `tamanhos` em `criar_produto()`
+- [x] Atualizar `formatar_oferta()` com novos campos (PIX, parcelamento, tamanhos)
+- [x] Adicionar colunas no banco SQLite (preco_pix, parcelamento, tamanhos)
+- [x] Atualizar `check_and_mark()` em `main.py`
+- [x] Corrigir strikethrough (`~~` → `<s>`)
+- [x] Adicionar testes para novos campos
 
 ## Fase 9: Scraper Mercado Livre (Pendente)
 

@@ -1,10 +1,13 @@
 """Testes para o módulo send_telegram."""
 
 import pytest
+from unittest.mock import patch, AsyncMock
 from scripts.send_telegram import (
     formatar_oferta,
     extrair_marca,
     extrair_categoria,
+    validar_produto,
+    enviar_oferta,
 )
 
 
@@ -146,3 +149,204 @@ class TestFormatarOferta:
         }
         texto = formatar_oferta(produto)
         assert "Menor preço já visto" not in texto
+
+    def test_oferta_url_invalida(self):
+        """Testa formatação com link inválido."""
+        produto = {
+            "nome": "Produto Teste",
+            "preco": 99.99,
+            "url": "https://example.com",
+            "loja": "Amazon",
+            "url_valido": False,
+        }
+        texto = formatar_oferta(produto)
+        assert "Link indisponível" in texto
+        assert "Comprar agora" not in texto
+
+    def test_oferta_com_pix(self):
+        """Testa formatação com preço PIX."""
+        produto = {
+            "nome": "Produto PIX",
+            "preco": 199.99,
+            "preco_pix": 179.99,
+            "url": "https://example.com",
+            "loja": "Amazon",
+        }
+        texto = formatar_oferta(produto)
+        assert "no PIX: R$" in texto
+        assert "179,99" in texto
+
+    def test_oferta_com_parcelamento(self):
+        """Testa formatação com parcelamento."""
+        produto = {
+            "nome": "Produto Parcelado",
+            "preco": 299.99,
+            "parcelamento": "10x de R$29,99",
+            "url": "https://example.com",
+            "loja": "Amazon",
+        }
+        texto = formatar_oferta(produto)
+        assert "10x de R$29,99" in texto
+
+    def test_oferta_com_tamanhos(self):
+        """Testa formatação com tamanhos disponíveis."""
+        produto = {
+            "nome": "Produto com Tamanhos",
+            "preco": 199.99,
+            "tamanhos": ["38", "39", "40", "41"],
+            "url": "https://example.com",
+            "loja": "Amazon",
+        }
+        texto = formatar_oferta(produto)
+        assert "38, 39, 40, 41" in texto
+
+    def test_oferta_sem_pix_maior(self):
+        """Testa quando PIX é maior que preço (não mostra)."""
+        produto = {
+            "nome": "Produto",
+            "preco": 100.00,
+            "preco_pix": 110.00,
+            "url": "https://example.com",
+            "loja": "Amazon",
+        }
+        texto = formatar_oferta(produto)
+        assert "no PIX" not in texto
+
+
+class TestValidarProduto:
+    """Testes para a função validar_produto."""
+
+    def test_url_valida(self):
+        """Testa URL válida."""
+        produto = {"url": "https://www.amazon.com.br/produto/123"}
+        result = validar_produto(produto)
+        assert result["url_valido"] is True
+
+    def test_url_vazia(self):
+        """Testa URL vazia."""
+        produto = {"url": ""}
+        result = validar_produto(produto)
+        assert result["url_valido"] is False
+
+    def test_url_sem_protocolo(self):
+        """Testa URL sem protocolo."""
+        produto = {"url": "www.amazon.com.br/produto"}
+        result = validar_produto(produto)
+        assert result["url_valido"] is False
+
+    def test_url_truncada(self):
+        """Testa URL muito curta (truncada)."""
+        produto = {"url": "https://amzn"}
+        result = validar_produto(produto)
+        assert result["url_valido"] is False
+
+    def test_url_http(self):
+        """Testa URL com HTTP."""
+        produto = {"url": "http://www.amazon.com.br/produto/123"}
+        result = validar_produto(produto)
+        assert result["url_valido"] is True
+
+    def test_imagem_data_uri(self):
+        """Testa remoção de placeholder data:."""
+        produto = {"imagem": "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="}
+        result = validar_produto(produto)
+        assert result["imagem"] == ""
+
+    def test_imagem_valida(self):
+        """Testa imagem HTTP válida."""
+        produto = {"imagem": "https://example.com/img.jpg"}
+        result = validar_produto(produto)
+        assert result["imagem"] == "https://example.com/img.jpg"
+
+    def test_imagem_protocolo_relativo(self):
+        """Testa conversão de // para https://."""
+        produto = {"imagem": "//cdn.example.com/img.jpg"}
+        result = validar_produto(produto)
+        assert result["imagem"] == "https://cdn.example.com/img.jpg"
+
+    def test_imagem_vazia(self):
+        """Testa imagem vazia."""
+        produto = {"imagem": ""}
+        result = validar_produto(produto)
+        assert result["imagem"] == ""
+
+    def test_produto_sem_url(self):
+        """Testa produto sem campo URL."""
+        produto = {"nome": "Teste"}
+        result = validar_produto(produto)
+        assert result["url_valido"] is False
+
+    def test_produto_completo(self):
+        """Testa validação de produto completo."""
+        produto = {
+            "nome": "Tênis Nike",
+            "preco": 299.99,
+            "url": "https://www.amazon.com.br/tenis-nike/p/123",
+            "imagem": "https://m.media-amazon.com/images/I/img1.jpg",
+            "loja": "Amazon",
+        }
+        result = validar_produto(produto)
+        assert result["url_valido"] is True
+        assert result["imagem"] == "https://m.media-amazon.com/images/I/img1.jpg"
+
+
+class TestEnviarOferta:
+    """Testes para a função enviar_oferta."""
+
+    @pytest.mark.asyncio
+    async def test_pular_produto_sem_link_e_imagem(self):
+        """Testa que produto sem link e sem imagem não é enviado."""
+        produto = {
+            "nome": "Produto Sem Link",
+            "preco": 99.99,
+            "url": "",
+            "imagem": "",
+            "loja": "Amazon",
+            "tipo": "nova",
+        }
+        resultado = await enviar_oferta(produto)
+        assert resultado is False
+
+    @pytest.mark.asyncio
+    async def test_enviar_produto_com_link(self):
+        """Testa que produto com link é enviado."""
+        produto = {
+            "nome": "Produto com Link",
+            "preco": 199.99,
+            "url": "https://www.amazon.com.br/produto/123",
+            "imagem": "",
+            "loja": "Amazon",
+            "tipo": "nova",
+        }
+        with patch("scripts.send_telegram.enviar_mensagem", new_callable=AsyncMock, return_value=True):
+            resultado = await enviar_oferta(produto)
+            assert resultado is True
+
+    @pytest.mark.asyncio
+    async def test_enviar_produto_com_imagem(self):
+        """Testa que produto com imagem é enviado."""
+        produto = {
+            "nome": "Produto com Imagem",
+            "preco": 299.99,
+            "url": "",
+            "imagem": "https://example.com/img.jpg",
+            "loja": "Amazon",
+            "tipo": "nova",
+        }
+        with patch("scripts.send_telegram.enviar_foto", new_callable=AsyncMock, return_value=True):
+            resultado = await enviar_oferta(produto)
+            assert resultado is True
+
+    @pytest.mark.asyncio
+    async def test_pular_produto_url_invalida_sem_imagem(self):
+        """Testa que produto com URL inválida e sem imagem não é enviado."""
+        produto = {
+            "nome": "Produto URL Inválida",
+            "preco": 99.99,
+            "url": "https://amzn",
+            "imagem": "",
+            "loja": "Amazon",
+            "tipo": "nova",
+        }
+        resultado = await enviar_oferta(produto)
+        assert resultado is False

@@ -44,6 +44,42 @@ class TestSalvarOferta:
         resultado = db.salvar_oferta({"nome": "Produto"})
         assert resultado is False
 
+    def test_salvar_com_pix_parcelamento_tamanhos(self, db):
+        """Testa inserção com preco_pix, parcelamento e tamanhos."""
+        produto = {
+            "produto_id": "test_novos",
+            "nome": "Tênis Nike",
+            "preco_atual": 299.99,
+            "loja": "Procorrer",
+            "preco_pix": 269.99,
+            "parcelamento": "10x de R$29,99",
+            "tamanhos": ["38", "39", "40"],
+        }
+        resultado = db.salvar_oferta(produto)
+        assert resultado is True
+        oferta = db.buscar_oferta("test_novos")
+        assert oferta["preco_pix"] == 269.99
+        assert oferta["parcelamento"] == "10x de R$29,99"
+        assert oferta["tamanhos"] == ["38", "39", "40"]
+
+    def test_atualizar_com_pix_parcelamento_tamanhos(self, db):
+        """Testa atualização com novos campos."""
+        produto = {
+            "produto_id": "test_att",
+            "nome": "Tênis Adidas",
+            "preco_atual": 399.99,
+            "loja": "Decathlon",
+        }
+        db.salvar_oferta(produto)
+        produto["preco_pix"] = 349.99
+        produto["parcelamento"] = "5x de R$69,99"
+        produto["tamanhos"] = ["40", "41", "42"]
+        db.salvar_oferta(produto)
+        oferta = db.buscar_oferta("test_att")
+        assert oferta["preco_pix"] == 349.99
+        assert oferta["parcelamento"] == "5x de R$69,99"
+        assert oferta["tamanhos"] == ["40", "41", "42"]
+
 
 class TestBuscarOferta:
     """Testes para buscar_oferta."""

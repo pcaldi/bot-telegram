@@ -112,6 +112,9 @@ class ProcorrerScraper(BaseScraper):
 
         price_text = ""
         prices = []
+        parcelamento = None
+        preco_pix = None
+
         for i, t in enumerate(texts):
             if "R$" in t:
                 try:
@@ -119,14 +122,23 @@ class ProcorrerScraper(BaseScraper):
                     if val > 0:
                         prev = texts[i - 1].strip() if i > 0 else ""
                         nxt = texts[i + 1].strip() if i + 1 < len(texts) else ""
+                        prev_lower = prev.lower()
+                        nxt_lower = nxt.lower()
+
+                        if "pix" in prev_lower or "pix" in nxt_lower:
+                            preco_pix = val
+                            continue
+
                         is_installment = (
-                            re.match(r'^\d+\s*x$', prev.lower())
-                            or re.match(r'^x\s*\d+$', prev.lower())
-                            or "juros" in nxt.lower()
-                            or "parcela" in nxt.lower()
+                            re.match(r'^\d+\s*x$', prev_lower)
+                            or re.match(r'^x\s*\d+$', prev_lower)
+                            or "juros" in nxt_lower
+                            or "parcela" in nxt_lower
                         )
                         if is_installment:
+                            parcelamento = f"{prev} {t}".strip()
                             continue
+
                         prices.append((t, val))
                 except Exception:
                     pass
@@ -162,9 +174,28 @@ class ProcorrerScraper(BaseScraper):
         imagem = ""
         img_el = item.select_one("img")
         if img_el:
-            imagem = img_el.get("src", "") or img_el.get("data-src", "")
+            imagem = (
+                img_el.get("src", "")
+                or img_el.get("data-src", "")
+                or img_el.get("data-lazy-src", "")
+                or img_el.get("data-original", "")
+            )
             if imagem and imagem.startswith("//"):
                 imagem = f"https:{imagem}"
+            if not imagem or "placeholder" in imagem or imagem.startswith("data:"):
+                srcset = img_el.get("data-srcset", "")
+                if srcset:
+                    primeira = srcset.split(",")[0].strip().split(" ")[0]
+                    if primeira.startswith("//"):
+                        primeira = f"https:{primeira}"
+                    imagem = primeira
+
+        tamanhos = []
+        size_els = item.select("button[data-option], .size-option, .tamanho, [class*=size] button")
+        for el in size_els:
+            txt = el.get_text(strip=True)
+            if txt and len(txt) <= 5:
+                tamanhos.append(txt)
 
         return self.criar_produto(
             nome=name[:100],
@@ -172,6 +203,9 @@ class ProcorrerScraper(BaseScraper):
             url=href,
             preco_antigo=preco_antigo,
             imagem=imagem,
+            preco_pix=preco_pix,
+            parcelamento=parcelamento,
+            tamanhos=tamanhos if tamanhos else None,
         )
 
 
