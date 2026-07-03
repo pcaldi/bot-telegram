@@ -252,7 +252,8 @@ async def _handle_search(token: str, chat_id: int, args: str):
     await _send_message(token, chat_id, f"📦 {len(produtos)} resultado(s) encontrado(s):")
 
     for prod in produtos[:10]:
-        from scripts.send_telegram import formatar_oferta
+        from scripts.send_telegram import formatar_oferta, validar_produto
+        prod = validar_produto(prod)
         texto = formatar_oferta(prod)
         await _send_message(token, chat_id, texto)
         await asyncio.sleep(2)
@@ -276,7 +277,8 @@ async def _handle_category(token: str, chat_id: int, category_key: str):
     await _send_message(token, chat_id, f"📦 {len(produtos)} resultado(s):")
 
     for prod in produtos[:10]:
-        from scripts.send_telegram import formatar_oferta
+        from scripts.send_telegram import formatar_oferta, validar_produto
+        prod = validar_produto(prod)
         texto = formatar_oferta(prod)
         await _send_message(token, chat_id, texto)
         await asyncio.sleep(2)

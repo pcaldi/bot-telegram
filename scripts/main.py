@@ -17,7 +17,7 @@ from scripts.scraper_amazon import AmazonScraper
 from scripts.scraper_procorrer import ProcorrerScraper
 from scripts.scraper_decathlon import DecathlonScraper
 from scripts.scraper_playwright_runner import run_growth_batch
-from scripts.send_telegram import enviar_oferta, close_session
+from scripts.send_telegram import enviar_oferta, close_session, validar_produto
 from scripts.commands import poll_updates, get_all_products, load_custom
 from scripts.browser_utils import BrowserManager
 from scripts.core.database import Database
@@ -242,14 +242,16 @@ async def executar_scrapers():
             produtos = dedup_produtos(produtos_brutos)
 
             for prod in produtos[:MAX_PER_PRODUTO]:
+                prod = validar_produto(prod)
+
+                url_valida = prod.get("url_valido", True) and prod.get("url", "")
+                tem_imagem = bool(prod.get("imagem", ""))
+                if not url_valida and not tem_imagem:
+                    log.info("Pulando produto sem link/imagem: %s", prod.get("nome", "")[:50])
+                    continue
+
                 tipo = check_and_mark(prod, db)
                 if tipo:
-                    url_valida = prod.get("url", "") and prod.get("url_valido") is not False
-                    tem_imagem = bool(prod.get("imagem", ""))
-                    if not url_valida and not tem_imagem:
-                        log.info("Pulando produto sem link/imagem: %s", prod.get("nome", "")[:50])
-                        continue
-
                     pid = gerar_id(prod)
                     menor_preco = db.buscar_menor_preco(pid)
                     if menor_preco is not None and prod["preco"] <= menor_preco:

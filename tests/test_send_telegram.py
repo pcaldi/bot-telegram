@@ -318,7 +318,8 @@ class TestEnviarOferta:
             "loja": "Amazon",
             "tipo": "nova",
         }
-        with patch("scripts.send_telegram.enviar_mensagem", new_callable=AsyncMock, return_value=True):
+        with patch("scripts.send_telegram.enviar_mensagem", new_callable=AsyncMock, return_value=True), \
+             patch("scripts.send_telegram.verificar_url", new_callable=AsyncMock, return_value=True):
             resultado = await enviar_oferta(produto)
             assert resultado is True
 
@@ -350,3 +351,33 @@ class TestEnviarOferta:
         }
         resultado = await enviar_oferta(produto)
         assert resultado is False
+
+    @pytest.mark.asyncio
+    async def test_pular_produto_link_quebrado(self):
+        """Testa que produto com link quebrado (HEAD 404) não é enviado."""
+        produto = {
+            "nome": "Produto Link Quebrado",
+            "preco": 149.99,
+            "url": "https://www.amazon.com.br/produto/quebrado",
+            "imagem": "",
+            "loja": "Amazon",
+            "tipo": "nova",
+        }
+        with patch("scripts.send_telegram.verificar_url", new_callable=AsyncMock, return_value=False):
+            resultado = await enviar_oferta(produto)
+            assert resultado is False
+
+    @pytest.mark.asyncio
+    async def test_enviar_queda_com_link_quebrado(self):
+        """Testa que queda de preço é enviada mesmo com link quebrado."""
+        produto = {
+            "nome": "Produto Queda",
+            "preco": 99.99,
+            "url": "https://www.amazon.com.br/produto/quebrado",
+            "imagem": "",
+            "loja": "Amazon",
+            "tipo": "queda",
+        }
+        with patch("scripts.send_telegram.enviar_mensagem", new_callable=AsyncMock, return_value=True):
+            resultado = await enviar_oferta(produto)
+            assert resultado is True

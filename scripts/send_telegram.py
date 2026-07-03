@@ -291,7 +291,7 @@ async def enviar_oferta(produto: dict):
         url_ok = await verificar_url(produto["url"])
         if not url_ok:
             log.warning("Link quebrado: %s", produto["url"])
-            produto["url_valido"] = False
+            return False
 
     texto = formatar_oferta(produto)
     imagem = produto.get("imagem", "")
