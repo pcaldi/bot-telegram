@@ -47,6 +47,7 @@ class TestParseItem:
         assert "Nike" in produto["nome"]
         assert produto["preco"] == 599.99
         assert "mercadolivre.com.br" in produto["url"]
+        assert "tag=picaldi" in produto["url"]
 
     def test_parse_item_com_desconto(self, scraper):
         """Testa parse de item com desconto."""

@@ -192,3 +192,5 @@ SCRAPE_CONFIG = {
     "max_por_produto": 4,
     "seen_dias_ttl": 90,
 }
+
+ML_AFFILIATE_TAG = os.getenv("ML_AFFILIATE_TAG", "picaldi")

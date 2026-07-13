@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts.core.base_scraper import BaseScraper
 from scripts.core.price_parser import parse_preco
 from scripts.browser_utils import BrowserManager
+from config import ML_AFFILIATE_TAG
 
 log = logging.getLogger("bot-ofertas.mercadolivre")
 
@@ -99,6 +100,11 @@ class MercadoLivreScraper(BaseScraper):
         href = (title_el.get_attribute("href") or "").strip()
         if not href or not href.startswith("http"):
             return None
+
+        # Adiciona tag de afiliado ML
+        if ML_AFFILIATE_TAG:
+            separator = "&" if "?" in href else "?"
+            href = f"{href}{separator}tag={ML_AFFILIATE_TAG}"
 
         # Imagem
         imagem = ""
