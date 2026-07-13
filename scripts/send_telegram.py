@@ -21,6 +21,7 @@ LOJA_EMOJI = {
     "Decathlon": "🔵",
     "Growth": "💪",
     "Procorrer": "👟",
+    "Mercado Livre": "🟠",
 }
 
 LOJA_DOMINIO = {
@@ -28,6 +29,7 @@ LOJA_DOMINIO = {
     "Decathlon": "decathlon.com.br",
     "Growth": "gsuplementos.com.br",
     "Procorrer": "procorrer.com.br",
+    "Mercado Livre": "mercadolivre.com.br",
 }
 
 _session = None
@@ -107,25 +109,51 @@ def validar_produto(produto: dict) -> dict:
     """Valida e corrige dados do produto antes do envio.
 
     Verifica se URL e imagem são válidas. Remove placeholders e URLs truncadas.
+
+    Returns:
+        Dict validado com campos adicionais:
+        - url_valido: bool (True se URL parece válida)
+        - imagem_valida: bool (True se imagem parece real)
+        - problemas: list (reasons for skipping)
     """
+    problemas = []
     url = produto.get("url", "")
-
-    if not url or not url.startswith(("http://", "https://")):
-        produto["url_valido"] = False
-    elif len(url) < 20:
-        produto["url_valido"] = False
-    else:
-        produto["url_valido"] = True
-
     imagem = produto.get("imagem", "")
-    if imagem:
-        if imagem.startswith("data:") or imagem.startswith("javascript:"):
-            produto["imagem"] = ""
-        elif not imagem.startswith(("http://", "https://", "//")):
-            produto["imagem"] = ""
-        elif imagem.startswith("//"):
-            produto["imagem"] = f"https:{imagem}"
 
+    # Validar URL
+    if not url or not url.startswith(("http://", "https://")):
+        problemas.append("url_invalida")
+        url_valido = False
+    elif len(url) < 20:
+        problemas.append("url_curta")
+        url_valido = False
+    elif any(domain in url.lower() for domain in ["localhost", "localhost:", "127.0.0.1"]):
+        problemas.append("localhost")
+        url_valido = False
+    else:
+        url_valido = True
+
+    # Validar imagem
+    if not imagem:
+        problemas.append("sem_imagem")
+        imagem_valida = False
+    elif imagem.startswith("data:") or "javascript:" in imagem.lower():
+        problemas.append("data_uri/placeholder")
+        imagem_valida = False
+    elif not imagem.startswith(("http://", "https://", "//")):
+        problemas.append("imagem_protocolo_invalido")
+        imagem_valida = False
+    elif "placeholder" in imagem.lower() and any(
+        pl in imagem.lower() for pl in ["empty", "placeholder", "default", "blank"]
+    ):
+        problemas.append("placeholder_image")
+        imagem_valida = False
+    else:
+        imagem_valida = True
+
+    produto["url_valido"] = url_valido
+    produto["imagem_valida"] = imagem_valida
+    produto["problemas"] = problemas
     return produto
 
 

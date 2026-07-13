@@ -162,6 +162,29 @@ PRODUTOS_MONITORADOS = [
         "preco_max": 700.0,
         "categoria": "Tênis"
     },
+
+    # ==================== MERCADO LIVRE ====================
+    {
+        "id": "nike_air_max_ml",
+        "nome": "Tênis Nike Air Max (Mercado Livre)",
+        "palavras_chave": ["nike air max"],
+        "preco_max": 800.0,
+        "categoria": "Tênis"
+    },
+    {
+        "id": "whey_protein_ml",
+        "nome": "Whey Protein (Mercado Livre)",
+        "palavras_chave": ["whey protein"],
+        "preco_max": 250.0,
+        "categoria": "Suplementos"
+    },
+    {
+        "id": "fone_bluetooth_ml",
+        "nome": "Fone Bluetooth (Mercado Livre)",
+        "palavras_chave": ["fone bluetooth"],
+        "preco_max": 400.0,
+        "categoria": "Eletrônicos"
+    },
 ]
 
 SCRAPE_CONFIG = {

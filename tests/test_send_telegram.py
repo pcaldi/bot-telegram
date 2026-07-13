@@ -1,5 +1,6 @@
 """Testes para o módulo send_telegram."""
 
+import asyncio
 import pytest
 from unittest.mock import patch, AsyncMock
 from scripts.send_telegram import (
@@ -9,6 +10,21 @@ from scripts.send_telegram import (
     validar_produto,
     enviar_oferta,
 )
+
+
+def _run_async(coro):
+    """Executa coroutine em event loop isolado (evita conflito com Playwright)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result(timeout=30)
+    return asyncio.run(coro)
 
 
 class TestExtrairMarca:
@@ -247,22 +263,23 @@ class TestValidarProduto:
         assert result["url_valido"] is True
 
     def test_imagem_data_uri(self):
-        """Testa remoção de placeholder data:."""
+        """Testa classificação de placeholder data:."""
         produto = {"imagem": "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="}
         result = validar_produto(produto)
-        assert result["imagem"] == ""
+        assert result["imagem_valida"] is False
+        assert "data_uri/placeholder" in result["problemas"]
 
     def test_imagem_valida(self):
         """Testa imagem HTTP válida."""
         produto = {"imagem": "https://example.com/img.jpg"}
         result = validar_produto(produto)
-        assert result["imagem"] == "https://example.com/img.jpg"
+        assert result["imagem_valida"] is True
 
     def test_imagem_protocolo_relativo(self):
-        """Testa conversão de // para https://."""
+        """Testa classificação de protocolo relativo."""
         produto = {"imagem": "//cdn.example.com/img.jpg"}
         result = validar_produto(produto)
-        assert result["imagem"] == "https://cdn.example.com/img.jpg"
+        assert result["imagem_valida"] is True
 
     def test_imagem_vazia(self):
         """Testa imagem vazia."""
@@ -287,14 +304,14 @@ class TestValidarProduto:
         }
         result = validar_produto(produto)
         assert result["url_valido"] is True
-        assert result["imagem"] == "https://m.media-amazon.com/images/I/img1.jpg"
+        assert result["imagem_valida"] is True
+        assert result["problemas"] == []
 
 
 class TestEnviarOferta:
     """Testes para a função enviar_oferta."""
 
-    @pytest.mark.asyncio
-    async def test_pular_produto_sem_link_e_imagem(self):
+    def test_pular_produto_sem_link_e_imagem(self):
         """Testa que produto sem link e sem imagem não é enviado."""
         produto = {
             "nome": "Produto Sem Link",
@@ -304,11 +321,10 @@ class TestEnviarOferta:
             "loja": "Amazon",
             "tipo": "nova",
         }
-        resultado = await enviar_oferta(produto)
+        resultado = _run_async(enviar_oferta(produto))
         assert resultado is False
 
-    @pytest.mark.asyncio
-    async def test_enviar_produto_com_link(self):
+    def test_enviar_produto_com_link(self):
         """Testa que produto com link é enviado."""
         produto = {
             "nome": "Produto com Link",
@@ -320,11 +336,10 @@ class TestEnviarOferta:
         }
         with patch("scripts.send_telegram.enviar_mensagem", new_callable=AsyncMock, return_value=True), \
              patch("scripts.send_telegram.verificar_url", new_callable=AsyncMock, return_value=True):
-            resultado = await enviar_oferta(produto)
+            resultado = _run_async(enviar_oferta(produto))
             assert resultado is True
 
-    @pytest.mark.asyncio
-    async def test_enviar_produto_com_imagem(self):
+    def test_enviar_produto_com_imagem(self):
         """Testa que produto com imagem é enviado."""
         produto = {
             "nome": "Produto com Imagem",
@@ -335,11 +350,10 @@ class TestEnviarOferta:
             "tipo": "nova",
         }
         with patch("scripts.send_telegram.enviar_foto", new_callable=AsyncMock, return_value=True):
-            resultado = await enviar_oferta(produto)
+            resultado = _run_async(enviar_oferta(produto))
             assert resultado is True
 
-    @pytest.mark.asyncio
-    async def test_pular_produto_url_invalida_sem_imagem(self):
+    def test_pular_produto_url_invalida_sem_imagem(self):
         """Testa que produto com URL inválida e sem imagem não é enviado."""
         produto = {
             "nome": "Produto URL Inválida",
@@ -349,11 +363,10 @@ class TestEnviarOferta:
             "loja": "Amazon",
             "tipo": "nova",
         }
-        resultado = await enviar_oferta(produto)
+        resultado = _run_async(enviar_oferta(produto))
         assert resultado is False
 
-    @pytest.mark.asyncio
-    async def test_pular_produto_link_quebrado(self):
+    def test_pular_produto_link_quebrado(self):
         """Testa que produto com link quebrado (HEAD 404) não é enviado."""
         produto = {
             "nome": "Produto Link Quebrado",
@@ -364,11 +377,10 @@ class TestEnviarOferta:
             "tipo": "nova",
         }
         with patch("scripts.send_telegram.verificar_url", new_callable=AsyncMock, return_value=False):
-            resultado = await enviar_oferta(produto)
+            resultado = _run_async(enviar_oferta(produto))
             assert resultado is False
 
-    @pytest.mark.asyncio
-    async def test_enviar_queda_com_link_quebrado(self):
+    def test_enviar_queda_com_link_quebrado(self):
         """Testa que queda de preço é enviada mesmo com link quebrado."""
         produto = {
             "nome": "Produto Queda",
@@ -379,5 +391,5 @@ class TestEnviarOferta:
             "tipo": "queda",
         }
         with patch("scripts.send_telegram.enviar_mensagem", new_callable=AsyncMock, return_value=True):
-            resultado = await enviar_oferta(produto)
+            resultado = _run_async(enviar_oferta(produto))
             assert resultado is True

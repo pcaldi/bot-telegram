@@ -2,6 +2,7 @@
 
 import pytest
 import asyncio
+import concurrent.futures
 from unittest.mock import patch, MagicMock, AsyncMock
 import scripts.commands as cmds
 from scripts.commands import (
@@ -9,6 +10,20 @@ from scripts.commands import (
     _handle_search, _handle_category, _run_scrapers_sync,
     CATEGORY_COMMANDS,
 )
+
+
+def _run_async(coro):
+    """Executa coroutine em event loop isolado (evita conflito com Playwright)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result(timeout=30)
+    return asyncio.run(coro)
 
 
 @pytest.fixture(autouse=True)
@@ -148,17 +163,15 @@ class TestRunScrapersSync:
 class TestHandleSearch:
     """Testes para o comando /search."""
 
-    @pytest.mark.asyncio
-    async def test_search_vazio(self):
+    def test_search_vazio(self):
         """Testa /search sem argumentos."""
         mock_send = AsyncMock()
         with patch("scripts.commands._send_message", mock_send):
-            await _handle_search("token", 123, "")
+            _run_async(_handle_search("token", 123, ""))
             mock_send.assert_called_once()
             assert "Uso:" in mock_send.call_args[0][2]
 
-    @pytest.mark.asyncio
-    async def test_search_com_resultados(self):
+    def test_search_com_resultados(self):
         """Testa /search com resultados."""
         produtos = [{"nome": "Nike Air", "preco": 299.9, "url": "https://example.com", "loja": "Amazon"}]
         mock_send = AsyncMock()
@@ -166,18 +179,17 @@ class TestHandleSearch:
         with patch("scripts.commands._send_message", mock_send), \
              patch("scripts.commands._run_scrapers_sync", return_value=produtos), \
              patch("scripts.commands.asyncio.get_running_loop", return_value=mock_loop):
-            await _handle_search("token", 123, "nike air max")
+            _run_async(_handle_search("token", 123, "nike air max"))
             assert mock_send.call_count >= 3
 
-    @pytest.mark.asyncio
-    async def test_search_com_loja(self):
+    def test_search_com_loja(self):
         """Testa /search com filtro de loja."""
         mock_send = AsyncMock()
         mock_loop = _mock_loop_with_results([])
         with patch("scripts.commands._send_message", mock_send), \
              patch("scripts.commands._run_scrapers_sync", return_value=[]), \
              patch("scripts.commands.asyncio.get_running_loop", return_value=mock_loop):
-            await _handle_search("token", 123, "nike amazon")
+            _run_async(_handle_search("token", 123, "nike amazon"))
             mock_send.assert_called()
             first_call_text = mock_send.call_args_list[0][0][2]
             assert "Amazon" in first_call_text
@@ -186,21 +198,19 @@ class TestHandleSearch:
 class TestHandleCategory:
     """Testes para comandos de categoria."""
 
-    @pytest.mark.asyncio
-    async def test_categoria_corrida(self):
+    def test_categoria_corrida(self):
         """Testa comando /corrida."""
         mock_send = AsyncMock()
         mock_loop = _mock_loop_with_results([])
         with patch("scripts.commands._send_message", mock_send), \
              patch("scripts.commands._run_scrapers_sync", return_value=[]), \
              patch("scripts.commands.asyncio.get_running_loop", return_value=mock_loop):
-            await _handle_category("token", 123, "/corrida")
+            _run_async(_handle_category("token", 123, "/corrida"))
             mock_send.assert_called()
             first_text = mock_send.call_args_list[0][0][2]
             assert "corrida" in first_text.lower()
 
-    @pytest.mark.asyncio
-    async def test_categoria_com_resultados(self):
+    def test_categoria_com_resultados(self):
         """Testa categoria com resultados encontrados."""
         produtos = [
             {"nome": "Tênis Corrida", "preco": 350.0, "url": "https://example.com", "loja": "Amazon"},
@@ -211,7 +221,7 @@ class TestHandleCategory:
         with patch("scripts.commands._send_message", mock_send), \
              patch("scripts.commands._run_scrapers_sync", return_value=produtos), \
              patch("scripts.commands.asyncio.get_running_loop", return_value=mock_loop):
-            await _handle_category("token", 123, "/corrida")
+            _run_async(_handle_category("token", 123, "/corrida"))
             assert mock_send.call_count >= 3
 
 

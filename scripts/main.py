@@ -16,6 +16,7 @@ from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN
 from scripts.scraper_amazon import AmazonScraper
 from scripts.scraper_procorrer import ProcorrerScraper
 from scripts.scraper_decathlon import DecathlonScraper
+from scripts.scraper_mercadolivre import MercadoLivreScraper
 from scripts.scraper_playwright_runner import run_growth_batch
 from scripts.send_telegram import enviar_oferta, close_session, validar_produto
 from scripts.commands import poll_updates, get_all_products, load_custom
@@ -197,6 +198,17 @@ def _scrape_all() -> dict:
         except Exception as e:
             log.warning("Decathlon falhou para '%s': %s", termo, e)
 
+    # Scraping via Mercado Livre (Playwright + stealth)
+    ml_scraper = MercadoLivreScraper()
+    ml_results = {}
+    for termo in unique_terms:
+        ml_results[termo] = []
+        try:
+            pm = term_to_preco_max.get(termo, 999999)
+            ml_results[termo].extend(ml_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
+        except Exception as e:
+            log.warning("Mercado Livre falhou para '%s': %s", termo, e)
+
     # Scraping via Growth (Playwright batch)
     pw_results = {}
     if growth_terms:
@@ -213,6 +225,7 @@ def _scrape_all() -> dict:
             amz_results.get(termo, [])
             + pc_results.get(termo, [])
             + dc_results.get(termo, [])
+            + ml_results.get(termo, [])
             + pw_results.get(termo, [])
         )
 
@@ -229,7 +242,7 @@ async def executar_scrapers():
     loop = asyncio.get_running_loop()
 
     try:
-        log.info("  Executando scrapers (Amazon + Procorrer + Decathlon + Growth)...")
+        log.info("  Executando scrapers (Amazon + Procorrer + Decathlon + Mercado Livre + Growth)...")
         all_results = await loop.run_in_executor(_executor, _scrape_all)
 
         all_prods = get_all_products(PRODUTOS_MONITORADOS)

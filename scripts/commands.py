@@ -11,7 +11,7 @@ from scripts.core.database import Database
 
 log = logging.getLogger("bot-ofertas")
 
-KNOWN_STORES = {"amazon", "growth", "procorrer", "decathlon"}
+KNOWN_STORES = {"amazon", "growth", "procorrer", "decathlon", "mercado livre"}
 
 CATEGORY_COMMANDS = {
     "/corrida": {
@@ -181,12 +181,14 @@ def _get_scrapers(lojas: list = None):
     from scripts.scraper_amazon import AmazonScraper
     from scripts.scraper_procorrer import ProcorrerScraper
     from scripts.scraper_decathlon import DecathlonScraper
+    from scripts.scraper_mercadolivre import MercadoLivreScraper
     from scripts.scraper_playwright_runner import run_growth_batch
 
     all_scrapers = {
         "Amazon": lambda: AmazonScraper(),
         "Procorrer": lambda: ProcorrerScraper(),
         "Decathlon": lambda: DecathlonScraper(),
+        "Mercado Livre": lambda: MercadoLivreScraper(),
     }
 
     if lojas:
@@ -224,7 +226,7 @@ async def _handle_search(token: str, chat_id: int, args: str):
     """Busca produtos nos scrapers existentes."""
     if not args.strip():
         await _send_message(token, chat_id, "Uso: /search &lt;termo&gt; [loja]\n"
-                            "Lojas: amazon, growth, procorrer, decathlon\n"
+                            "Lojas: amazon, growth, procorrer, decathlon, mercado livre\n"
                             "Ex: /search nike air max")
         return
 
@@ -317,7 +319,7 @@ async def handle_message(token: str, message: dict):
                  "/list — Ver produtos adicionados\n"
                  "/status — Ver estatísticas\n"
                  "/search &lt;termo&gt; [loja] — Ex: /search nike air max\n"
-                 "  Lojas: amazon, growth, procorrer, decathlon\n"
+                 "  Lojas: amazon, growth, procorrer, decathlon, mercado livre\n"
                  "/corrida — Tênis, shorts, relógio, camiseta, meia\n"
                  "/suplementos — Whey, creatina, bcaa, vitaminas\n"
                  "/eletronicos — Fones, monitores, tv, robo aspirador\n"
