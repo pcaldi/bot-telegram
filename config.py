@@ -193,4 +193,4 @@ SCRAPE_CONFIG = {
     "seen_dias_ttl": 90,
 }
 
-ML_AFFILIATE_TAG = os.getenv("ML_AFFILIATE_TAG", "picaldi")
+ML_AFFILIATE_TAG = os.getenv("ML_AFFILIATE_TAG", "pcaldi")
