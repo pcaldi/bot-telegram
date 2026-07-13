@@ -52,19 +52,27 @@ class TestParseItem:
     def test_parse_item_com_desconto(self, scraper):
         """Testa parse de item com desconto."""
         mock_item = MagicMock()
-        mock_item.query_selector.side_effect = lambda sel: {
-            "a.poly-component__title": _mock_element("Tênis com Desconto", "https://produto.mercadolivre.com.br/MLB-456"),
-            "span.andes-money-amount__fraction": _mock_element("299"),
-            "span.andes-money-amount__cents": _mock_element("99"),
-            "img.poly-component__picture": _mock_element(None, "https://http2.mlstatic.com/img.webp"),
-            "span.poly-component__installments": _mock_element(None),
-            "span.poly-component__shipping": _mock_element(None),
-            "span.poly-component__discount": _mock_element("20% OFF"),
-        }.get(sel)
+
+        def mock_query_selector(sel):
+            mocks = {
+                "a.poly-component__title": _mock_element("Tênis com Desconto", "https://produto.mercadolivre.com.br/MLB-456"),
+                "span.poly-price__amount span.andes-money-amount__fraction": None,
+                "span.andes-money-amount__fraction": _mock_element("299"),
+                "span.andes-money-amount__cents--superscript-24": None,
+                "span.andes-money-amount__cents": _mock_element("99"),
+                "img.poly-component__picture": _mock_element(None, "https://http2.mlstatic.com/img.webp"),
+                "span.poly-component__installments": _mock_element(None),
+                "span.poly-component__shipping": _mock_element(None),
+                "s.andes-money-amount--previous": _mock_old_price("399", "99"),
+            }
+            return mocks.get(sel)
+
+        mock_item.query_selector.side_effect = mock_query_selector
         produto = scraper._parse_item(mock_item)
         assert produto is not None
         assert produto["preco"] == 299.99
         assert produto["preco_antigo"] is not None
+        assert produto["preco_antigo"] > produto["preco"]
 
     def test_parse_item_sem_preco(self, scraper):
         """Testa parse de item sem preço retorna None."""
@@ -177,4 +185,20 @@ def _mock_element(text=None, href=None):
         el.inner_text.return_value = text
     if href is not None:
         el.get_attribute.return_value = href
+    return el
+
+
+def _mock_old_price(fraction, cents="00"):
+    """Cria mock de elemento de preço antigo (<s> tag)."""
+    el = MagicMock()
+    el.inner_text.return_value = f"R${fraction},{cents}"
+
+    def mock_query_selector(sel):
+        if sel == "span.andes-money-amount__fraction":
+            return _mock_element(fraction)
+        elif sel == "span.andes-money-amount__cents":
+            return _mock_element(cents)
+        return None
+
+    el.query_selector.side_effect = mock_query_selector
     return el
