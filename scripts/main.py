@@ -164,6 +164,7 @@ def _scrape_all() -> dict:
             growth_terms.append(termo)
 
     unique_terms = list(dict.fromkeys(all_terms))
+    log.info("  Termos únicos: %d - %s", len(unique_terms), unique_terms[:5])
 
     # Scraping via Amazon (HTTP + cloudscraper)
     amz_scraper = AmazonScraper()
@@ -246,6 +247,16 @@ def _scrape_all() -> dict:
             + pw_results.get(termo, [])
         )
 
+    # Log resumo
+    total = sum(len(v) for v in combined.values())
+    log.info("  Scrapers: Amazon=%d, Procorrer=%d, Decathlon=%d, ML=%d, Growth=%d",
+             sum(len(v) for v in amz_results.values()),
+             sum(len(v) for v in pc_results.values()),
+             sum(len(v) for v in dc_results.values()),
+             sum(len(v) for v in ml_results.values()),
+             sum(len(v) for v in pw_results.values()))
+    log.info("  Total de produtos encontrados: %d", total)
+
     return combined
 
 
@@ -260,7 +271,11 @@ async def executar_scrapers():
 
     try:
         log.info("  Executando scrapers (Amazon + Procorrer + Decathlon + Mercado Livre + Growth)...")
-        all_results = await loop.run_in_executor(_executor, _scrape_all)
+        try:
+            all_results = await loop.run_in_executor(_executor, _scrape_all)
+        except Exception as e:
+            log.error("Erro no executor, tentando direto: %s", e)
+            all_results = await asyncio.to_thread(_scrape_all)
 
         all_prods = get_all_products(PRODUTOS_MONITORADOS)
         for produto_alvo in all_prods:
