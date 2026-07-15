@@ -35,7 +35,7 @@ MAX_PER_PRODUTO = SCRAPE_CONFIG["max_por_produto"]
 SEEN_TTL_DIAS = SCRAPE_CONFIG["seen_dias_ttl"]
 SCRAPE_INTERVAL = 3600
 
-_executor = ThreadPoolExecutor(max_workers=2)
+_executor = ThreadPoolExecutor(max_workers=5)
 _db: Optional[Database] = None
 
 
@@ -145,12 +145,51 @@ def check_and_mark(prod: dict, db: Database) -> Optional[str]:
     return None
 
 
+def _scrape_amazon(unique_terms, term_to_preco_max) -> dict:
+    """Scraping Amazon (HTTP + cloudscraper) via subprocess."""
+    from scripts.scraper_playwright_runner import run_amazon
+    return run_amazon(unique_terms, term_to_preco_max, MAX_PER_SCRAPER)
+
+
+def _scrape_procorrer(unique_terms, term_to_preco_max) -> dict:
+    """Scraping Procorrer (Playwright) via subprocess."""
+    from scripts.scraper_playwright_runner import run_playwright_scraper
+    return run_playwright_scraper("procorrer", unique_terms, term_to_preco_max, MAX_PER_SCRAPER)
+
+
+def _scrape_decathlon(unique_terms, term_to_preco_max) -> dict:
+    """Scraping Decathlon (Playwright) via subprocess."""
+    from scripts.scraper_playwright_runner import run_playwright_scraper
+    return run_playwright_scraper("decathlon", unique_terms, term_to_preco_max, MAX_PER_SCRAPER)
+
+
+def _scrape_ml(unique_terms, term_to_preco_max) -> dict:
+    """Scraping Mercado Livre (Playwright) via subprocess."""
+    from scripts.scraper_playwright_runner import run_playwright_scraper
+    return run_playwright_scraper("ml", unique_terms, term_to_preco_max, MAX_PER_SCRAPER)
+
+
+def _scrape_growth(growth_terms, term_to_preco_max) -> dict:
+    """Scraping Growth (Playwright) via subprocess."""
+    from scripts.scraper_playwright_runner import run_growth_batch
+    if not growth_terms:
+        return {}
+    try:
+        growth_preco_max = max(term_to_preco_max.get(t, 999999) for t in growth_terms)
+        return run_growth_batch(growth_terms, growth_preco_max, MAX_PER_SCRAPER)
+    except Exception as e:
+        log.warning("Growth batch falhou: %s", e)
+        return {}
+
+
 def _scrape_all() -> dict:
-    """Executa todos os scrapers e retorna resultados agrupados por termo.
+    """Executa todos os scrapers em paralelo (subprocessos) e retorna resultados agrupados por termo.
 
     Returns:
         Dicionário com termos como chaves e listas de produtos como valores
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     all_prods = get_all_products(PRODUTOS_MONITORADOS)
 
     all_terms = []
@@ -166,75 +205,40 @@ def _scrape_all() -> dict:
     unique_terms = list(dict.fromkeys(all_terms))
     log.info("  Termos únicos: %d - %s", len(unique_terms), unique_terms[:5])
 
-    # Scraping via Amazon (HTTP + cloudscraper)
-    amz_scraper = AmazonScraper()
-    amz_results = {}
-    for termo in unique_terms:
-        amz_results[termo] = []
-        try:
-            pm = term_to_preco_max.get(termo, 999999)
-            amz_results[termo].extend(amz_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
-        except Exception as e:
-            log.warning("Amazon falhou para '%s': %s", termo, e)
+    # Executa scrapers em paralelo (cada um em subprocess separado)
+    log.info("  Executando 5 scrapers em paralelo (subprocessos)...")
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(_scrape_amazon, unique_terms, term_to_preco_max): "Amazon",
+            executor.submit(_scrape_procorrer, unique_terms, term_to_preco_max): "Procorrer",
+            executor.submit(_scrape_decathlon, unique_terms, term_to_preco_max): "Decathlon",
+            executor.submit(_scrape_ml, unique_terms, term_to_preco_max): "ML",
+            executor.submit(_scrape_growth, growth_terms, term_to_preco_max): "Growth",
+        }
 
-    # Scraping via Procorrer (Playwright + stealth)
-    pc_scraper = ProcorrerScraper()
-    pc_results = {}
-    for termo in unique_terms:
-        pc_results[termo] = []
-        try:
-            pm = term_to_preco_max.get(termo, 999999)
-            pc_results[termo].extend(pc_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
-        except Exception as e:
-            log.warning("Procorrer falhou para '%s': %s", termo, e)
+        amz_results = {}
+        pc_results = {}
+        dc_results = {}
+        ml_results = {}
+        pw_results = {}
 
-    # Scraping via Decathlon (Playwright + stealth)
-    dc_scraper = DecathlonScraper()
-    dc_results = {}
-    for termo in unique_terms:
-        dc_results[termo] = []
-        try:
-            pm = term_to_preco_max.get(termo, 999999)
-            dc_results[termo].extend(dc_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
-        except Exception as e:
-            log.warning("Decathlon falhou para '%s': %s", termo, e)
-
-    # Scraping via Mercado Livre (Playwright + stealth) - busca na página de ofertas
-    ml_scraper = MercadoLivreScraper()
-    ml_results = {}
-    try:
-        ml_ofertas = ml_scraper.buscar_ofertas(max_preco=max(term_to_preco_max.values()) if term_to_preco_max else None)
-        for p in ml_ofertas:
-            # Classifica o produto pelas palavras-chave
-            termo_match = None
-            for termo in unique_terms:
-                termo_lower = termo.lower()
-                nome_lower = p.get("nome", "").lower()
-                if termo_lower in nome_lower or any(w in nome_lower for w in termo_lower.split()):
-                    termo_match = termo
-                    break
-            if termo_match:
-                if termo_match not in ml_results:
-                    ml_results[termo_match] = []
-                ml_results[termo_match].append(p)
-            else:
-                # Produto não categorizado — usa o primeiro termo disponível
-                if unique_terms:
-                    fallback = unique_terms[0]
-                    if fallback not in ml_results:
-                        ml_results[fallback] = []
-                    ml_results[fallback].append(p)
-    except Exception as e:
-        log.warning("Mercado Livre ofertas falhou: %s", e)
-
-    # Scraping via Growth (Playwright batch)
-    pw_results = {}
-    if growth_terms:
-        try:
-            growth_preco_max = max(term_to_preco_max.get(t, 999999) for t in growth_terms)
-            pw_results = run_growth_batch(growth_terms, growth_preco_max, MAX_PER_SCRAPER)
-        except Exception as e:
-            log.warning("Growth batch falhou: %s", e)
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                result = future.result(timeout=200)
+                if name == "Amazon":
+                    amz_results = result
+                elif name == "Procorrer":
+                    pc_results = result
+                elif name == "Decathlon":
+                    dc_results = result
+                elif name == "ML":
+                    ml_results = result
+                elif name == "Growth":
+                    pw_results = result
+                log.info("  %s concluído: %d produtos", name, sum(len(v) for v in result.values()))
+            except Exception as e:
+                log.warning("  %s falhou: %s", name, e)
 
     # Combina resultados
     combined = {}

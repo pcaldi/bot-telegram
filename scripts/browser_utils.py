@@ -17,23 +17,33 @@ _stealth = Stealth(
 
 
 class BrowserManager:
-    _instance = None
+    _instances = []
+    _instances_lock = threading.Lock()
 
     def __init__(self):
         self._pw = None
         self._browser = None
         self._context = None
         self._lock = threading.Lock()
+        self._started = False
 
     @classmethod
     def get(cls) -> "BrowserManager":
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
+        """Retorna instância compartilhada (compatibilidade)."""
+        with cls._instances_lock:
+            if not cls._instances:
+                mgr = cls()
+                cls._instances.append(mgr)
+            return cls._instances[0]
+
+    @classmethod
+    def new_instance(cls) -> "BrowserManager":
+        """Cria nova instância independente (para paralelismo)."""
+        return cls()
 
     def start(self):
         with self._lock:
-            if self._browser:
+            if self._started:
                 return
             self._pw = sync_playwright().start()
             self._browser = self._pw.chromium.launch(headless=True)
@@ -41,6 +51,7 @@ class BrowserManager:
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
                 locale="pt-BR"
             )
+            self._started = True
             log.info("Browser Playwright iniciado (stealth)")
 
     def new_page(self):
@@ -50,21 +61,22 @@ class BrowserManager:
         return page
 
     def stop(self):
-        if self._browser:
-            try:
-                self._browser.close()
-            except Exception:
-                pass
-            self._browser = None
-            self._context = None
-        if self._pw:
-            try:
-                self._pw.stop()
-            except Exception:
-                pass
-            self._pw = None
-        BrowserManager._instance = None
-        log.info("Browser Playwright fechado")
+        with self._lock:
+            if self._browser:
+                try:
+                    self._browser.close()
+                except Exception:
+                    pass
+                self._browser = None
+                self._context = None
+            if self._pw:
+                try:
+                    self._pw.stop()
+                except Exception:
+                    pass
+                self._pw = None
+            self._started = False
+            log.info("Browser Playwright fechado")
 
     def __enter__(self):
         self.start()
