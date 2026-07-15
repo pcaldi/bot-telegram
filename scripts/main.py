@@ -198,16 +198,33 @@ def _scrape_all() -> dict:
         except Exception as e:
             log.warning("Decathlon falhou para '%s': %s", termo, e)
 
-    # Scraping via Mercado Livre (Playwright + stealth)
+    # Scraping via Mercado Livre (Playwright + stealth) - busca na página de ofertas
     ml_scraper = MercadoLivreScraper()
     ml_results = {}
-    for termo in unique_terms:
-        ml_results[termo] = []
-        try:
-            pm = term_to_preco_max.get(termo, 999999)
-            ml_results[termo].extend(ml_scraper.buscar(termo, pm)[:MAX_PER_SCRAPER])
-        except Exception as e:
-            log.warning("Mercado Livre falhou para '%s': %s", termo, e)
+    try:
+        ml_ofertas = ml_scraper.buscar_ofertas(max_preco=max(term_to_preco_max.values()) if term_to_preco_max else None)
+        for p in ml_ofertas:
+            # Classifica o produto pelas palavras-chave
+            termo_match = None
+            for termo in unique_terms:
+                termo_lower = termo.lower()
+                nome_lower = p.get("nome", "").lower()
+                if termo_lower in nome_lower or any(w in nome_lower for w in termo_lower.split()):
+                    termo_match = termo
+                    break
+            if termo_match:
+                if termo_match not in ml_results:
+                    ml_results[termo_match] = []
+                ml_results[termo_match].append(p)
+            else:
+                # Produto não categorizado — usa o primeiro termo disponível
+                if unique_terms:
+                    fallback = unique_terms[0]
+                    if fallback not in ml_results:
+                        ml_results[fallback] = []
+                    ml_results[fallback].append(p)
+    except Exception as e:
+        log.warning("Mercado Livre ofertas falhou: %s", e)
 
     # Scraping via Growth (Playwright batch)
     pw_results = {}
