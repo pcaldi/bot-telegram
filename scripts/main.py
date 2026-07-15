@@ -286,7 +286,7 @@ async def executar_scrapers():
                     menor_preco = db.buscar_menor_preco(pid)
                     if menor_preco is not None and prod["preco"] <= menor_preco:
                         prod["menor_preco"] = menor_preco
-                    await asyncio.sleep(60)
+                    await asyncio.sleep(30)
                     try:
                         await enviar_oferta(prod)
                         db.registrar_envio(pid, tipo, prod["preco"])

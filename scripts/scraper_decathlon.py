@@ -48,7 +48,7 @@ class DecathlonScraper(BaseScraper):
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_timeout(8000)
+            page.wait_for_timeout(5000)
             html = page.content()
         except Exception as e:
             self.tratar_erro(f"Erro ao buscar '{termo}'", e)

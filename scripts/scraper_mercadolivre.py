@@ -60,7 +60,7 @@ class MercadoLivreScraper(BaseScraper):
         try:
             page = self._bm.new_page()
             page.goto(url, timeout=30000)
-            page.wait_for_timeout(8000)
+            page.wait_for_timeout(5000)
 
             items = page.query_selector_all("div.poly-card")
             produtos = []
@@ -99,7 +99,7 @@ class MercadoLivreScraper(BaseScraper):
         try:
             page = self._bm.new_page()
             page.goto(url, timeout=30000)
-            page.wait_for_timeout(8000)
+            page.wait_for_timeout(5000)
 
             items = page.query_selector_all("div.poly-card")
             produtos = []

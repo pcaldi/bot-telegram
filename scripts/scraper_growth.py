@@ -108,7 +108,7 @@ class GrowthScraper(BaseScraper):
         urls = []
         search_url = f"{self.base_url}/busca?q={query}"
         page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_timeout(10000)
+        page.wait_for_timeout(5000)
 
         links = page.query_selector_all("a[href]")
         for link in links:
