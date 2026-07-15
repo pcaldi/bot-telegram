@@ -271,11 +271,7 @@ async def executar_scrapers():
 
     try:
         log.info("  Executando scrapers (Amazon + Procorrer + Decathlon + Mercado Livre + Growth)...")
-        try:
-            all_results = await loop.run_in_executor(_executor, _scrape_all)
-        except Exception as e:
-            log.error("Erro no executor, tentando direto: %s", e)
-            all_results = await asyncio.to_thread(_scrape_all)
+        all_results = await loop.run_in_executor(_executor, _scrape_all)
 
         all_prods = get_all_products(PRODUTOS_MONITORADOS)
         for produto_alvo in all_prods:
