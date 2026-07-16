@@ -143,7 +143,7 @@ class TestFormatarOferta:
         assert "A" * 81 not in texto
 
     def test_oferta_menor_preco(self):
-        """Testa indicador de menor preço já visto."""
+        """Testa que indicador de menor preço não é exibido (removido)."""
         produto = {
             "nome": "Produto Teste",
             "preco": 99.99,
@@ -152,7 +152,7 @@ class TestFormatarOferta:
             "menor_preco": 99.99,
         }
         texto = formatar_oferta(produto)
-        assert "Menor preço já visto" in texto
+        assert "Menor preço já visto" not in texto
 
     def test_oferta_sem_menor_preco(self):
         """Testa quando não é menor preço."""

@@ -1,15 +1,15 @@
-import aiohttp
 import asyncio
 import logging
-import sys
 import os
-from typing import Optional
+import sys
+
+import aiohttp
 
 # Adiciona o diretório pai ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import TELEGRAM_BOT_TOKEN, CANAL_ID
-from scripts.core.price_parser import formatar_preco, calcular_desconto, calcular_economia
+from config import CANAL_ID, TELEGRAM_BOT_TOKEN
+from scripts.core.price_parser import formatar_preco
 
 log = logging.getLogger("bot-ofertas")
 
@@ -49,12 +49,16 @@ async def close_session():
         _session = None
 
 
-async def _send_with_retry(url: str, payload: dict, timeout: int = 10, use_json: bool = True) -> bool:
+async def _send_with_retry(
+    url: str, payload: dict, timeout: int = 10, use_json: bool = True
+) -> bool:
     for attempt in range(MAX_RETRIES):
         try:
             session = _get_session()
             kwargs = {"json": payload} if use_json else {"data": payload}
-            async with session.post(url, timeout=aiohttp.ClientTimeout(total=timeout), **kwargs) as resp:
+            async with session.post(
+                url, timeout=aiohttp.ClientTimeout(total=timeout), **kwargs
+            ) as resp:
                 if resp.status == 200:
                     return True
                 if resp.status == 429:
@@ -86,7 +90,7 @@ async def enviar_mensagem(texto: str, chat_id: int = CANAL_ID):
         "chat_id": chat_id,
         "text": texto,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": True,
     }
     return await _send_with_retry(url, payload, timeout=10, use_json=True)
 
@@ -97,7 +101,7 @@ async def enviar_foto(url_foto: str, caption: str, chat_id: int = CANAL_ID):
         "chat_id": chat_id,
         "photo": url_foto,
         "caption": caption,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
     }
     ok = await _send_with_retry(url_api, payload, timeout=15, use_json=False)
     if not ok:
@@ -127,7 +131,9 @@ def validar_produto(produto: dict) -> dict:
     elif len(url) < 20:
         problemas.append("url_curta")
         url_valido = False
-    elif any(domain in url.lower() for domain in ["localhost", "localhost:", "127.0.0.1"]):
+    elif any(
+        domain in url.lower() for domain in ["localhost", "localhost:", "127.0.0.1"]
+    ):
         problemas.append("localhost")
         url_valido = False
     else:
@@ -161,8 +167,9 @@ async def verificar_url(url: str) -> bool:
     """Verifica se URL retorna 200 via HEAD request."""
     try:
         session = _get_session()
-        async with session.head(url, timeout=aiohttp.ClientTimeout(total=5),
-                                allow_redirects=True) as resp:
+        async with session.head(
+            url, timeout=aiohttp.ClientTimeout(total=5), allow_redirects=True
+        ) as resp:
             return resp.status == 200
     except Exception:
         return False
@@ -170,11 +177,19 @@ async def verificar_url(url: str) -> bool:
 
 def extrair_marca(nome: str) -> str:
     marcas = {
-        "nike": "Nike", "adidas": "Adidas", "puma": "Puma",
-        "mizuno": "Mizuno", "olympikus": "Olympikus", "asics": "Asics",
-        "new balance": "New Balance", "reebok": "Reebok",
-        "jbl": "JBL", "soundcore": "Soundcore", "anker": "Anker",
-        "growth": "Growth", "integralmedica": "Integralmedica",
+        "nike": "Nike",
+        "adidas": "Adidas",
+        "puma": "Puma",
+        "mizuno": "Mizuno",
+        "olympikus": "Olympikus",
+        "asics": "Asics",
+        "new balance": "New Balance",
+        "reebok": "Reebok",
+        "jbl": "JBL",
+        "soundcore": "Soundcore",
+        "anker": "Anker",
+        "growth": "Growth",
+        "integralmedica": "Integralmedica",
     }
     nome_lower = nome.lower()
     for key, val in marcas.items():
@@ -206,12 +221,72 @@ def extrair_categoria(nome: str) -> str:
 
     categorias = {
         "Tênis": ["tênis", "tenis", "sapato", "sneaker", "corrida", "running"],
-        "Eletrônicos": ["fone", "mouse", "teclado", "monitor", "ssd", "notebook", "celular", "smartphone", "tablet", "headphone", "bluetooth"],
-        "Suplementos": ["whey", "creatina", "proteína", "protein", "creatine", "suplemento", "aminoácido", "bcaa", "glutamina"],
-        "Roupas": ["camisa", "camiseta", "calça", "shorts", "jaqueta", "moletom", "bermuda", "roupa"],
-        "Acessórios": ["mochila", "bolsa", "cinto", "óculos", "relógio", "acessório", "bone", "chapeu"],
-        "Casa": ["air fryer", "liquidificador", "aspirador", "cafeteira", "microondas", "ar condicionado", "ventilador"],
-        "Esportes": ["bola", "raquete", "epi", "capacete", "luva", "faixa", "toalha", "futebol", "basquete", "vôlei", "handebol"],
+        "Eletrônicos": [
+            "fone",
+            "mouse",
+            "teclado",
+            "monitor",
+            "ssd",
+            "notebook",
+            "celular",
+            "smartphone",
+            "tablet",
+            "headphone",
+            "bluetooth",
+        ],
+        "Suplementos": [
+            "whey",
+            "creatina",
+            "proteína",
+            "protein",
+            "creatine",
+            "suplemento",
+            "aminoácido",
+            "bcaa",
+            "glutamina",
+        ],
+        "Roupas": [
+            "camisa",
+            "camiseta",
+            "calça",
+            "shorts",
+            "jaqueta",
+            "moletom",
+            "bermuda",
+            "roupa",
+        ],
+        "Acessórios": [
+            "mochila",
+            "bolsa",
+            "cinto",
+            "óculos",
+            "relógio",
+            "acessório",
+            "bone",
+            "chapeu",
+        ],
+        "Casa": [
+            "air fryer",
+            "liquidificador",
+            "aspirador",
+            "cafeteira",
+            "microondas",
+            "ar condicionado",
+            "ventilador",
+        ],
+        "Esportes": [
+            "bola",
+            "raquete",
+            "epi",
+            "capacete",
+            "luva",
+            "faixa",
+            "toalha",
+            "futebol",
+            "basquete",
+            "vôlei",
+            "handebol",
+        ],
     }
 
     for categoria, palavras in categorias.items():
@@ -273,11 +348,6 @@ def formatar_oferta(produto: dict) -> str:
     else:
         linhas.append(f"💰 Por <b>{formatar_preco(preco)}</b>")
 
-    # Indicador de menor preço
-    if menor_preco is not None and preco <= menor_preco:
-        linhas.append("")
-        linhas.append("🏆 <b>Menor preço já visto!</b>")
-
     # PIX
     preco_pix = produto.get("preco_pix")
     if preco_pix and preco_pix < preco:
@@ -312,7 +382,9 @@ async def enviar_oferta(produto: dict):
     tem_imagem = bool(produto.get("imagem", ""))
 
     if not url_valida and not tem_imagem:
-        log.warning("Produto sem link e sem imagem, ignorado: %s", produto.get("nome", "")[:50])
+        log.warning(
+            "Produto sem link e sem imagem, ignorado: %s", produto.get("nome", "")[:50]
+        )
         return False
 
     if produto.get("tipo") == "nova" and url_valida:

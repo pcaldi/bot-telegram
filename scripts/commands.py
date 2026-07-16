@@ -1,9 +1,10 @@
-import json
-import os
-import logging
-import aiohttp
 import asyncio
+import json
+import logging
+import os
 import sys
+
+import aiohttp
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -15,33 +16,71 @@ KNOWN_STORES = {"amazon", "growth", "procorrer", "decathlon", "mercado livre"}
 
 CATEGORY_COMMANDS = {
     "/corrida": {
-        "termos": ["tênis corrida", "shorts corrida", "relógio gps corrida", "camiseta corrida", "meia corrida"],
-        "lojas": ["Amazon", "Procorrer", "Decathlon"],
+        "termos": [
+            "tênis corrida",
+            "shorts corrida",
+            "relógio gps corrida",
+            "camiseta corrida",
+            "meia corrida",
+        ],
+        "lojas": ["Amazon", "Procorrer", "Decathlon", "mercado livre"],
     },
     "/suplementos": {
-        "termos": ["whey protein", "creatina", "bcaa", "glutamina", "vitamina d", "vitamina c", "multivitamínico"],
-        "lojas": ["Amazon", "Growth"],
+        "termos": [
+            "whey protein",
+            "creatina",
+            "bcaa",
+            "glutamina",
+            "vitamina d",
+            "vitamina c",
+            "multivitamínico",
+        ],
+        "lojas": ["Amazon", "Growth", "mercado livre"],
     },
     "/eletronicos": {
-        "termos": ["fone bluetooth", "monitor 24 polegadas", "monitor 27 polegadas", "tv 4k", "robo aspirador"],
-        "lojas": ["Amazon"],
+        "termos": [
+            "fone bluetooth",
+            "monitor 24 polegadas",
+            "monitor 27 polegadas",
+            "tv 4k",
+            "robo aspirador",
+        ],
+        "lojas": ["Amazon", "mercado livre"],
     },
-    
     "/casa": {
         "termos": ["air fryer", "aspirador robot", "cafeteira", "liquidificador"],
-        "lojas": ["Amazon"],
+        "lojas": ["Amazon", "mercado livre"],
     },
     "/esportes": {
         "termos": ["bola futebol", "raquete tênis", "luva boxe", "capacete bike"],
-        "lojas": ["Amazon", "Decathlon"],
+        "lojas": ["Amazon", "Decathlon", "mercado livre"],
     },
     "/tenis": {
-        "termos": ["tênis nike", "tênis adidas", "tênis asics", "tênis olympikus", "tênis mizuno", "tênis puma", "tênis new balance", "tênis under armour", "tênis saucony", "tênis brooks", "tênis salomon", "tênis hoka", "tênis reebok", "tênis fila", "tênis vans","tênis on"],
-        "lojas": ["Amazon", "Procorrer", "Decathlon"],
+        "termos": [
+            "tênis nike",
+            "tênis adidas",
+            "tênis asics",
+            "tênis olympikus",
+            "tênis mizuno",
+            "tênis puma",
+            "tênis new balance",
+            "tênis under armour",
+            "tênis saucony",
+            "tênis brooks",
+            "tênis salomon",
+            "tênis hoka",
+            "tênis reebok",
+            "tênis fila",
+            "tênis vans",
+            "tênis on",
+        ],
+        "lojas": ["Amazon", "Procorrer", "Decathlon", "mercado livre"],
     },
 }
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+)
 CUSTOM_FILE = os.path.join(DATA_DIR, "custom_products.json")
 
 _custom_products = []
@@ -71,15 +110,18 @@ def get_all_products(base_products: list) -> list:
 
 async def _send_message(token: str, chat_id: int, text: str):
     from scripts.send_telegram import _get_session
+
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": True,
     }
     session = _get_session()
-    async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+    async with session.post(
+        url, json=payload, timeout=aiohttp.ClientTimeout(total=10)
+    ) as resp:
         if resp.status != 200:
             log.warning("Erro ao enviar resposta: %d", resp.status)
 
@@ -117,7 +159,7 @@ def _handle_add(args: str) -> str:
         "nome": termo.title(),
         "palavras_chave": [termo.lower()],
         "preco_max": preco_max,
-        "categoria": "Custom"
+        "categoria": "Custom",
     }
 
     for p in _custom_products:
@@ -179,10 +221,10 @@ def _handle_status() -> str:
 def _get_scrapers(lojas: list = None):
     """Retorna instâncias de scrapers filtradas por loja."""
     from scripts.scraper_amazon import AmazonScraper
-    from scripts.scraper_procorrer import ProcorrerScraper
     from scripts.scraper_decathlon import DecathlonScraper
     from scripts.scraper_mercadolivre import MercadoLivreScraper
     from scripts.scraper_playwright_runner import run_growth_batch
+    from scripts.scraper_procorrer import ProcorrerScraper
 
     all_scrapers = {
         "Amazon": lambda: AmazonScraper(),
@@ -196,9 +238,12 @@ def _get_scrapers(lojas: list = None):
     return all_scrapers, run_growth_batch
 
 
-def _run_scrapers_sync(termos: list, lojas: list = None, max_por_scraper: int = 3) -> list:
+def _run_scrapers_sync(
+    termos: list, lojas: list = None, max_por_scraper: int = 3
+) -> list:
     """Executa scrapers de forma síncrona e retorna todos os produtos encontrados."""
     from scripts.main import dedup_produtos
+
     scrapers, run_growth = _get_scrapers(lojas)
     results = []
 
@@ -225,9 +270,13 @@ def _run_scrapers_sync(termos: list, lojas: list = None, max_por_scraper: int = 
 async def _handle_search(token: str, chat_id: int, args: str):
     """Busca produtos nos scrapers existentes."""
     if not args.strip():
-        await _send_message(token, chat_id, "Uso: /search &lt;termo&gt; [loja]\n"
-                            "Lojas: amazon, growth, procorrer, decathlon, mercado livre\n"
-                            "Ex: /search nike air max")
+        await _send_message(
+            token,
+            chat_id,
+            "Uso: /search &lt;termo&gt; [loja]\n"
+            "Lojas: amazon, growth, procorrer, decathlon, mercado livre\n"
+            "Ex: /search nike air max",
+        )
         return
 
     parts = args.strip().split()
@@ -240,21 +289,31 @@ async def _handle_search(token: str, chat_id: int, args: str):
         await _send_message(token, chat_id, "Informe um termo de busca.")
         return
 
-    await _send_message(token, chat_id, f"🔍 Buscando <b>{termo}</b>"
-                        + (f" na <b>{loja_filter}</b>" if loja_filter else "") + "...")
+    await _send_message(
+        token,
+        chat_id,
+        f"🔍 Buscando <b>{termo}</b>"
+        + (f" na <b>{loja_filter}</b>" if loja_filter else "")
+        + "...",
+    )
 
     loop = asyncio.get_running_loop()
     lojas_list = [loja_filter] if loja_filter else None
-    produtos = await loop.run_in_executor(None, _run_scrapers_sync, [termo], lojas_list, 3)
+    produtos = await loop.run_in_executor(
+        None, _run_scrapers_sync, [termo], lojas_list, 3
+    )
 
     if not produtos:
         await _send_message(token, chat_id, "Nenhum resultado encontrado.")
         return
 
-    await _send_message(token, chat_id, f"📦 {len(produtos)} resultado(s) encontrado(s):")
+    await _send_message(
+        token, chat_id, f"📦 {len(produtos)} resultado(s) encontrado(s):"
+    )
 
     for prod in produtos[:10]:
         from scripts.send_telegram import formatar_oferta, validar_produto
+
         prod = validar_produto(prod)
         texto = formatar_oferta(prod)
         await _send_message(token, chat_id, texto)
@@ -267,19 +326,24 @@ async def _handle_category(token: str, chat_id: int, category_key: str):
     termos = cat["termos"]
     lojas = cat["lojas"]
 
-    await _send_message(token, chat_id, f"🔍 Buscando ofertas de <b>{category_key[1:]}</b>...")
+    await _send_message(
+        token, chat_id, f"🔍 Buscando ofertas de <b>{category_key[1:]}</b>..."
+    )
 
     loop = asyncio.get_running_loop()
     produtos = await loop.run_in_executor(None, _run_scrapers_sync, termos, lojas, 3)
 
     if not produtos:
-        await _send_message(token, chat_id, "Nenhum resultado encontrado para esta categoria.")
+        await _send_message(
+            token, chat_id, "Nenhum resultado encontrado para esta categoria."
+        )
         return
 
     await _send_message(token, chat_id, f"📦 {len(produtos)} resultado(s):")
 
     for prod in produtos[:10]:
         from scripts.send_telegram import formatar_oferta, validar_produto
+
         prod = validar_produto(prod)
         texto = formatar_oferta(prod)
         await _send_message(token, chat_id, texto)
@@ -301,31 +365,31 @@ async def handle_message(token: str, message: dict):
 
     static_responses = {
         "/start": "Bem-vindo! Comandos:\n"
-                  "/add &lt;termo&gt; [preco_max] — Adicionar produto\n"
-                  "/remove &lt;id&gt; — Remover produto\n"
-                  "/list — Listar produtos custom\n"
-                  "/status — Ver estatísticas do bot\n"
-                  "/search &lt;termo&gt; [loja] — Buscar ofertas\n"
-                  "/corrida — Ofertas de corrida\n"
-                  "/suplementos — Ofertas de suplementos\n"
-                  "/eletronicos — Ofertas de eletrônicos\n"
-                  "/casa — Ofertas de casa\n"
-                  "/esportes — Ofertas de esportes\n"
-                  "/tenis — Ofertas de tênis\n"
-                  "/help — Esta ajuda",
+        "/add &lt;termo&gt; [preco_max] — Adicionar produto\n"
+        "/remove &lt;id&gt; — Remover produto\n"
+        "/list — Listar produtos custom\n"
+        "/status — Ver estatísticas do bot\n"
+        "/search &lt;termo&gt; [loja] — Buscar ofertas\n"
+        "/corrida — Ofertas de corrida\n"
+        "/suplementos — Ofertas de suplementos\n"
+        "/eletronicos — Ofertas de eletrônicos\n"
+        "/casa — Ofertas de casa\n"
+        "/esportes — Ofertas de esportes\n"
+        "/tenis — Ofertas de tênis\n"
+        "/help — Esta ajuda",
         "/help": "Comandos:\n"
-                 "/add &lt;termo&gt; [preco_max] — Ex: /add air fryer 500\n"
-                 "/remove &lt;número ou id&gt; — Ex: /remove 3\n"
-                 "/list — Ver produtos adicionados\n"
-                 "/status — Ver estatísticas\n"
-                 "/search &lt;termo&gt; [loja] — Ex: /search nike air max\n"
-                 "  Lojas: amazon, growth, procorrer, decathlon, mercado livre\n"
-                 "/corrida — Tênis, shorts, relógio, camiseta, meia\n"
-                 "/suplementos — Whey, creatina, bcaa, vitaminas\n"
-                 "/eletronicos — Fones, monitores, tv, robo aspirador\n"
-                 "/casa — Air fryer, aspirador, cafeteira, liquidificador\n"
-                 "/esportes — Bola, raquete, luva, capacete\n"
-                 "/tenis — Nike, Adidas, Asics, Mizuno, etc",
+        "/add &lt;termo&gt; [preco_max] — Ex: /add air fryer 500\n"
+        "/remove &lt;número ou id&gt; — Ex: /remove 3\n"
+        "/list — Ver produtos adicionados\n"
+        "/status — Ver estatísticas\n"
+        "/search &lt;termo&gt; [loja] — Ex: /search nike air max\n"
+        "  Lojas: amazon, growth, procorrer, decathlon, mercado livre\n"
+        "/corrida — Tênis, shorts, relógio, camiseta, meia\n"
+        "/suplementos — Whey, creatina, bcaa, vitaminas\n"
+        "/eletronicos — Fones, monitores, tv, robo aspirador\n"
+        "/casa — Air fryer, aspirador, cafeteira, liquidificador\n"
+        "/esportes — Bola, raquete, luva, capacete\n"
+        "/tenis — Nike, Adidas, Asics, Mizuno, etc",
     }
 
     if command in static_responses:
@@ -354,7 +418,11 @@ async def poll_updates(token: str, interval: int = 5):
             try:
                 url = f"https://api.telegram.org/bot{token}/getUpdates"
                 params = {"offset": _offset, "timeout": interval}
-                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=interval + 10)) as resp:
+                async with session.get(
+                    url,
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=interval + 10),
+                ) as resp:
                     if resp.status != 200:
                         await asyncio.sleep(interval)
                         continue
