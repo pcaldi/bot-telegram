@@ -188,7 +188,7 @@ PRODUTOS_MONITORADOS = [
 ]
 
 SCRAPE_CONFIG = {
-    "max_por_scraper": 2,
+    "max_por_scraper": 5,
     "max_por_produto": 4,
     "seen_dias_ttl": 90,
 }
