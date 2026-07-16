@@ -107,28 +107,14 @@ try:
     from scripts.scraper_mercadolivre import MercadoLivreScraper
     scraper = MercadoLivreScraper()
     unique_terms = list(dict.fromkeys(terms))
-    try:
-        ml_ofertas = scraper.buscar_ofertas(max_preco=max(term_to_preco_max.values()) if term_to_preco_max else None)
-        for p in ml_ofertas:
-            termo_match = None
-            for termo in unique_terms:
-                termo_lower = termo.lower()
-                nome_lower = p.get("nome", "").lower()
-                if termo_lower in nome_lower or any(w in nome_lower for w in termo_lower.split()):
-                    termo_match = termo
-                    break
-            if termo_match:
-                if termo_match not in resultados:
-                    resultados[termo_match] = []
-                resultados[termo_match].append(p)
-            else:
-                if unique_terms:
-                    fallback = unique_terms[0]
-                    if fallback not in resultados:
-                        resultados[fallback] = []
-                    resultados[fallback].append(p)
-    except Exception as e:
-        log.warning("ML ofertas falhou: %s", e)
+    for termo in unique_terms:
+        resultados[termo] = []
+        try:
+            pm = term_to_preco_max.get(termo, 999999)
+            produtos = scraper.buscar(termo, pm)
+            resultados[termo].extend(produtos[:max_per])
+        except Exception as e:
+            log.warning("ML falhou para '%s': %s", termo, e)
 '''
     elif scraper_name == "growth":
         script += '''
