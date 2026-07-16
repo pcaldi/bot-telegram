@@ -194,3 +194,6 @@ SCRAPE_CONFIG = {
 }
 
 ML_AFFILIATE_TAG = os.getenv("ML_AFFILIATE_TAG", "pcaldi")
+
+# Scrapers desabilitados temporariamente (ex: ["decathlon", "procorrer"])
+SCRAPERS_DISABLED = []

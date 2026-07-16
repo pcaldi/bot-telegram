@@ -12,7 +12,7 @@ from typing import Optional
 # Adiciona o diretório pai ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN
+from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN, SCRAPERS_DISABLED
 from scripts.scraper_amazon import AmazonScraper
 from scripts.scraper_procorrer import ProcorrerScraper
 from scripts.scraper_decathlon import DecathlonScraper
@@ -206,15 +206,20 @@ def _scrape_all() -> dict:
     log.info("  Termos únicos: %d - %s", len(unique_terms), unique_terms[:5])
 
     # Executa scrapers em paralelo (cada um em subprocess separado)
-    log.info("  Executando 5 scrapers em paralelo (subprocessos)...")
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {
-            executor.submit(_scrape_amazon, unique_terms, term_to_preco_max): "Amazon",
-            executor.submit(_scrape_procorrer, unique_terms, term_to_preco_max): "Procorrer",
-            executor.submit(_scrape_decathlon, unique_terms, term_to_preco_max): "Decathlon",
-            executor.submit(_scrape_ml, unique_terms, term_to_preco_max): "ML",
-            executor.submit(_scrape_growth, growth_terms, term_to_preco_max): "Growth",
-        }
+    enabled = [s for s in ["Amazon", "Procorrer", "Decathlon", "ML", "Growth"] if s not in SCRAPERS_DISABLED]
+    log.info("  Executando %d scrapers em paralelo: %s", len(enabled), ", ".join(enabled))
+    with ThreadPoolExecutor(max_workers=len(enabled)) as executor:
+        futures = {}
+        if "Amazon" in enabled:
+            futures[executor.submit(_scrape_amazon, unique_terms, term_to_preco_max)] = "Amazon"
+        if "Procorrer" in enabled:
+            futures[executor.submit(_scrape_procorrer, unique_terms, term_to_preco_max)] = "Procorrer"
+        if "Decathlon" in enabled:
+            futures[executor.submit(_scrape_decathlon, unique_terms, term_to_preco_max)] = "Decathlon"
+        if "ML" in enabled:
+            futures[executor.submit(_scrape_ml, unique_terms, term_to_preco_max)] = "ML"
+        if "Growth" in enabled:
+            futures[executor.submit(_scrape_growth, growth_terms, term_to_preco_max)] = "Growth"
 
         amz_results = {}
         pc_results = {}
