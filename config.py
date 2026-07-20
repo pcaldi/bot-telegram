@@ -195,6 +195,10 @@ SCRAPE_CONFIG = {
 
 ML_AFFILIATE_TAG = os.getenv("ML_AFFILIATE_TAG", "pcaldi")
 
+# IDs de Telegram dos administradores (user_id). Vazio = todos são admin.
+# Use /myid no bot para descobrir seu user_id.
+ADMIN_USER_IDS = []
+
 # Scrapers desabilitados temporariamente (ex: ["decathlon", "procorrer"])
 SCRAPERS_DISABLED = []
 

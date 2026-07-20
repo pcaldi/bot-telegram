@@ -9,10 +9,18 @@ import aiohttp
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.core.database import Database
+from config import ADMIN_USER_IDS
 
 log = logging.getLogger("bot-ofertas")
 
 KNOWN_STORES = {"amazon", "growth", "procorrer", "decathlon", "mercado livre"}
+
+
+def _is_admin(user_id: int) -> bool:
+    """Verifica se o usuário é admin. Se ADMIN_USER_IDS vazio, todos são admin."""
+    if not ADMIN_USER_IDS:
+        return True
+    return user_id in ADMIN_USER_IDS
 
 CATEGORY_COMMANDS = {
     "/corrida": {
@@ -354,6 +362,7 @@ async def handle_message(token: str, message: dict):
     global _offset
 
     chat_id = message["chat"]["id"]
+    user_id = message.get("from", {}).get("id", 0)
     text = message.get("text", "").strip()
 
     if not text.startswith("/"):
@@ -362,6 +371,19 @@ async def handle_message(token: str, message: dict):
     parts = text.split(maxsplit=1)
     command = parts[0].split("@")[0].lower()
     args = parts[1] if len(parts) > 1 else ""
+
+    # Comando /myid - mostra o user_id do usuário
+    if command == "/myid":
+        username = message.get("from", {}).get("username", "")
+        nome = message.get("from", {}).get("first_name", "")
+        await _send_message(token, chat_id, f"Seu user_id: <b>{user_id}</b>\nUsername: @{username}\nNome: {nome}")
+        return
+
+    # Comandos restritos a admins
+    admin_commands = {"/add", "/remove"}
+    if command in admin_commands and not _is_admin(user_id):
+        await _send_message(token, chat_id, "Acesso negado. Somente administradores podem usar este comando.")
+        return
 
     static_responses = {
         "/start": "Bem-vindo! Comandos:\n"
@@ -376,6 +398,7 @@ async def handle_message(token: str, message: dict):
         "/casa — Ofertas de casa\n"
         "/esportes — Ofertas de esportes\n"
         "/tenis — Ofertas de tênis\n"
+        "/myid — Ver seu user_id\n"
         "/help — Esta ajuda",
         "/help": "Comandos:\n"
         "/add &lt;termo&gt; [preco_max] — Ex: /add air fryer 500\n"
@@ -389,7 +412,8 @@ async def handle_message(token: str, message: dict):
         "/eletronicos — Fones, monitores, tv, robo aspirador\n"
         "/casa — Air fryer, aspirador, cafeteira, liquidificador\n"
         "/esportes — Bola, raquete, luva, capacete\n"
-        "/tenis — Nike, Adidas, Asics, Mizuno, etc",
+        "/tenis — Nike, Adidas, Asics, Mizuno, etc\n"
+        "/myid — Ver seu user_id (necessário para configurar admin)",
     }
 
     if command in static_responses:
