@@ -133,21 +133,21 @@
 ## Fase 14: Melhorias Pendentes (Proxima Sprint)
 
 ### Performance Critica
-- [ ] Reduzir sleep de 30s para 2s entre envios (`main.py:323`)
+- [x] Reduzir sleep de 30s para 2s entre envios (`main.py:323`)
 - [ ] Paralelizar comandos de categoria (evitar 80 chamadas sequenciais)
-- [ ] Usar SELECT MIN(preco) no SQL em vez de carregar tudo no Python (`database.py:256`)
-- [ ] Adicionar retry em `_send_message` do `commands.py`
+- [x] Usar SELECT MIN(preco) no SQL em vez de carregar tudo no Python (`database.py:256`)
+- [x] Adicionar retry em `_send_message` do `commands.py`
 
 ### Correcoes de Codigo
-- [ ] Remover `run_growth_batch` duplicado (`scraper_playwright_runner.py`)
-- [ ] Validar CANAL_ID != 0 no startup (`config.py`)
-- [ ] Remover GRUPO_ID nao utilizado (`config.py`)
-- [ ] Usar funcoes importadas calcular_desconto/calcular_economia (`send_telegram.py`)
+- [x] Remover `run_growth_batch` duplicado (`scraper_playwright_runner.py`)
+- [x] Validar CANAL_ID != 0 no startup (`config.py`)
+- [x] Remover GRUPO_ID nao utilizado (`config.py`)
+- [x] Usar funcoes importadas calcular_desconto/calcular_economia (`send_telegram.py`)
 
 ### Banco de Dados
-- [ ] Adicionar indice em `ofertas.loja`
-- [ ] Adicionar indice em `ofertas_enviadas.data_envio`
-- [ ] Adicionar cleanup para `ofertas_enviadas` (tabela cresce infinito)
+- [x] Adicionar indice em `ofertas.loja`
+- [x] Adicionar indice em `ofertas_enviadas.data_envio`
+- [x] Adicionar cleanup para `ofertas_enviadas` (tabela cresce infinito)
 - [ ] Usar ON DELETE CASCADE nas foreign keys
 
 ### Seguranca
@@ -174,4 +174,4 @@
 
 ---
 
-*Atualizado em: 2026-07-16*
+*Atualizado em: 2026-07-20*
