@@ -118,8 +118,16 @@ class AmazonScraper(BaseScraper):
                 except ValueError:
                     preco_antigo = None
 
-        # Imagem do produto
-        imagem = img_el.get("src", "") if img_el else ""
+        # Imagem do produto (evita placeholder grey-pixel da Amazon)
+        imagem = ""
+        if img_el:
+            src = img_el.get("src", "")
+            if "grey-pixel" not in src:
+                imagem = src
+            else:
+                srcset = img_el.get("srcset", "")
+                if srcset:
+                    imagem = srcset.split(",")[0].strip().split(" ")[0]
 
         return self.criar_produto(
             nome=nome,
