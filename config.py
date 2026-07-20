@@ -10,7 +10,8 @@ if not TELEGRAM_BOT_TOKEN and not os.getenv("TESTING"):
     raise ValueError("TELEGRAM_BOT_TOKEN não configurado. Adicione no .env ou nos secrets do GitHub Actions.")
 
 CANAL_ID = int(os.getenv("CANAL_ID", "0"))
-GRUPO_ID = int(os.getenv("GRUPO_ID", "0"))
+if CANAL_ID == 0 and not os.getenv("TESTING"):
+    raise ValueError("CANAL_ID não configurado. Adicione no .env ou nos secrets do GitHub Actions.")
 
 PRODUTOS_MONITORADOS = [
     # ==================== TÊNIS ====================

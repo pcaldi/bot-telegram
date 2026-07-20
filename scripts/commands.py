@@ -127,11 +127,25 @@ async def _send_message(token: str, chat_id: int, text: str):
         "disable_web_page_preview": True,
     }
     session = _get_session()
-    async with session.post(
-        url, json=payload, timeout=aiohttp.ClientTimeout(total=10)
-    ) as resp:
-        if resp.status != 200:
-            log.warning("Erro ao enviar resposta: %d", resp.status)
+    for attempt in range(3):
+        try:
+            async with session.post(
+                url, json=payload, timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    return
+                if resp.status == 429:
+                    data = await resp.json()
+                    retry_after = data.get("parameters", {}).get("retry_after", 5)
+                    log.warning("Rate limit, aguardando %ds", retry_after)
+                    await asyncio.sleep(retry_after)
+                    continue
+                log.warning("Erro ao enviar resposta: %d", resp.status)
+                return
+        except Exception as e:
+            log.warning("Erro ao enviar (tentativa %d): %s", attempt + 1, e)
+            if attempt < 2:
+                await asyncio.sleep(2)
 
 
 def _format_list(products: list) -> str:

@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS ofertas_enviadas (
 CREATE INDEX IF NOT EXISTS idx_historico_produto ON historico_precos(produto_id);
 CREATE INDEX IF NOT EXISTS idx_historico_data ON historico_precos(data_coleta);
 CREATE INDEX IF NOT EXISTS idx_enviadas_produto ON ofertas_enviadas(produto_id);
+CREATE INDEX IF NOT EXISTS idx_enviadas_data ON ofertas_enviadas(data_envio);
+CREATE INDEX IF NOT EXISTS idx_ofertas_loja ON ofertas(loja);
 """
 
 
@@ -92,6 +94,14 @@ class Database:
         for nome, tipo in novas_colunas:
             if nome not in colunas:
                 self.conn.execute(f"ALTER TABLE ofertas ADD COLUMN {nome} {tipo}")
+
+    def limpar_enviadas_antigas(self, dias: int = 30):
+        """Remove registros de ofertas_enviadas mais antigos que N dias."""
+        self.conn.execute(
+            "DELETE FROM ofertas_enviadas WHERE data_envio < datetime('now', ?)",
+            (f"-{dias} dias",)
+        )
+        self.conn.commit()
 
     def close(self):
         """Fecha a conexão com o banco."""
@@ -263,10 +273,17 @@ class Database:
         Returns:
             Menor preço, ou None se não houver histórico.
         """
-        historico = self.buscar_historico(produto_id, dias)
-        if not historico:
-            return None
-        return min(h["preco"] for h in historico)
+        if dias:
+            row = self.conn.execute(
+                "SELECT MIN(preco) FROM historico_precos WHERE produto_id = ? AND data_coleta >= datetime('now', ?)",
+                (produto_id, f"-{dias} days")
+            ).fetchone()
+        else:
+            row = self.conn.execute(
+                "SELECT MIN(preco) FROM historico_precos WHERE produto_id = ?",
+                (produto_id,)
+            ).fetchone()
+        return row[0] if row and row[0] is not None else None
 
     def buscar_por_loja(self, loja: str) -> list:
         """Busca todas as ofertas de uma loja.
