@@ -242,3 +242,90 @@ class TestCategoryCommands:
     def test_eletronicos_existe(self):
         """Testa que /eletronicos está mapeado."""
         assert "/eletronicos" in CATEGORY_COMMANDS
+
+    def test_casa_existe(self):
+        """Testa que /casa está mapeado."""
+        assert "/casa" in CATEGORY_COMMANDS
+
+    def test_esportes_existe(self):
+        """Testa que /esportes está mapeado."""
+        assert "/esportes" in CATEGORY_COMMANDS
+
+    def test_tenis_existe(self):
+        """Testa que /tenis está mapeado."""
+        assert "/tenis" in CATEGORY_COMMANDS
+
+
+class TestHandleMessage:
+    """Testes para handle_message (dispatch)."""
+
+    def _msg(self, text, user_id=123):
+        return {"chat": {"id": 456}, "from": {"id": user_id, "username": "test", "first_name": "Test"}, "text": text}
+
+    def test_start(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("/start")))
+            mock_send.assert_called_once()
+            assert "Bem-vindo" in mock_send.call_args[0][2]
+
+    def test_help(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("/help")))
+            mock_send.assert_called_once()
+
+    def test_myid(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("/myid")))
+            mock_send.assert_called_once()
+            assert "123" in mock_send.call_args[0][2]
+
+    def test_list(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("/list")))
+            mock_send.assert_called_once()
+
+    def test_status(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("/status")))
+            mock_send.assert_called_once()
+
+    def test_add(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("/add air fryer 500")))
+            mock_send.assert_called_once()
+            assert "Adicionado" in mock_send.call_args[0][2]
+
+    def test_comando_nao_existe(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("/comandofalso")))
+            mock_send.assert_not_called()
+
+    def test_texto_nao_comando(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send):
+            _run_async(handle_message("token", self._msg("olá mundo")))
+            mock_send.assert_not_called()
+
+    def test_admin_check(self):
+        from scripts.commands import handle_message
+        mock_send = AsyncMock()
+        with patch("scripts.commands._send_message", mock_send), \
+             patch("scripts.commands._is_admin", return_value=False):
+            _run_async(handle_message("token", self._msg("/add teste", user_id=999)))
+            mock_send.assert_called_once()
+            assert "negado" in mock_send.call_args[0][2].lower()

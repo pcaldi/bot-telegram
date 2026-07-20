@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+import time
 
 import aiohttp
 
@@ -14,6 +15,20 @@ from config import ADMIN_USER_IDS
 log = logging.getLogger("bot-ofertas")
 
 KNOWN_STORES = {"amazon", "growth", "procorrer", "decathlon", "mercado livre"}
+
+# Rate limiting: {user_id: last_command_timestamp}
+_user_cooldowns = {}
+COOLDOWN_SECONDS = 3
+
+
+def _check_rate_limit(user_id: int) -> bool:
+    """ Retorna True se o usuário pode usar o comando (sem cooldown ativo)."""
+    now = time.time()
+    last = _user_cooldowns.get(user_id, 0)
+    if now - last < COOLDOWN_SECONDS:
+        return False
+    _user_cooldowns[user_id] = now
+    return True
 
 
 def _is_admin(user_id: int) -> bool:
@@ -263,28 +278,47 @@ def _get_scrapers(lojas: list = None):
 def _run_scrapers_sync(
     termos: list, lojas: list = None, max_por_scraper: int = 3
 ) -> list:
-    """Executa scrapers de forma síncrona e retorna todos os produtos encontrados."""
+    """Executa scrapers de forma paralela e retorna todos os produtos encontrados."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     from scripts.main import dedup_produtos
 
     scrapers, run_growth = _get_scrapers(lojas)
     results = []
 
-    for termo in termos:
-        for nome_loja, scraper_fn in scrapers.items():
-            try:
-                scraper = scraper_fn()
-                produtos = scraper.buscar(termo, None)[:max_por_scraper]
-                results.extend(produtos)
-            except Exception as e:
-                log.warning("Scraper %s falhou para '%s': %s", nome_loja, termo, e)
+    def _scrape_term_loja(termo, nome_loja, scraper_fn):
+        try:
+            scraper = scraper_fn()
+            return scraper.buscar(termo, None)[:max_por_scraper]
+        except Exception as e:
+            log.warning("Scraper %s falhou para '%s': %s", nome_loja, termo, e)
+            return []
 
-        if lojas is None or "Growth" in lojas:
+    def _scrape_growth(termo):
+        try:
+            growth_results = run_growth([termo], None, max_por_scraper)
+            prods = []
+            for termo_r, p in growth_results.items():
+                prods.extend(p)
+            return prods
+        except Exception as e:
+            log.warning("Growth falhou para '%s': %s", termo, e)
+            return []
+
+    futures = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        for termo in termos:
+            for nome_loja, scraper_fn in scrapers.items():
+                futures.append(
+                    executor.submit(_scrape_term_loja, termo, nome_loja, scraper_fn)
+                )
+            if lojas is None or "Growth" in lojas:
+                futures.append(executor.submit(_scrape_growth, termo))
+
+        for future in as_completed(futures):
             try:
-                growth_results = run_growth([termo], None, max_por_scraper)
-                for termo_r, prods in growth_results.items():
-                    results.extend(prods)
-            except Exception as e:
-                log.warning("Growth falhou para '%s': %s", termo, e)
+                results.extend(future.result())
+            except Exception:
+                pass
 
     return dedup_produtos(results)
 
@@ -441,8 +475,14 @@ async def handle_message(token: str, message: dict):
     elif command == "/remove":
         await _send_message(token, chat_id, _handle_remove(args))
     elif command == "/search":
+        if not _check_rate_limit(user_id):
+            await _send_message(token, chat_id, "Aguarde 3 segundos antes de usar este comando novamente.")
+            return
         await _handle_search(token, chat_id, args)
     elif command in CATEGORY_COMMANDS:
+        if not _check_rate_limit(user_id):
+            await _send_message(token, chat_id, "Aguarde 3 segundos antes de usar este comando novamente.")
+            return
         await _handle_category(token, chat_id, command)
 
 

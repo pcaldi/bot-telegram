@@ -134,7 +134,7 @@
 
 ### Performance Critica
 - [x] Reduzir sleep de 30s para 2s entre envios (`main.py:323`)
-- [ ] Paralelizar comandos de categoria (evitar 80 chamadas sequenciais)
+- [x] Paralelizar comandos de categoria (ThreadPoolExecutor em `_run_scrapers_sync`)
 - [x] Usar SELECT MIN(preco) no SQL em vez de carregar tudo no Python (`database.py:256`)
 - [x] Adicionar retry em `_send_message` do `commands.py`
 
@@ -148,18 +148,18 @@
 - [x] Adicionar indice em `ofertas.loja`
 - [x] Adicionar indice em `ofertas_enviadas.data_envio`
 - [x] Adicionar cleanup para `ofertas_enviadas` (tabela cresce infinito)
-- [ ] Usar ON DELETE CASCADE nas foreign keys
+- [x] Usar ON DELETE CASCADE nas foreign keys
 
 ### Seguranca
-- [ ] Configurar ADMIN_USER_IDS com IDs reais
-- [ ] Adicionar rate limiting por usuario nos comandos
+- [x] Configurar ADMIN_USER_IDS com IDs reais
+- [x] Adicionar rate limiting por usuario nos comandos
 
 ### Testes
-- [ ] Criar testes para `scraper_amazon.py`
-- [ ] Criar testes para `scraper_decathlon.py`
-- [ ] Criar testes para `scraper_growth.py`
-- [ ] Criar testes para `check_and_mark()` em `main.py`
-- [ ] Criar testes para `handle_message()` dispatch
+- [x] Criar testes para `scraper_amazon.py`
+- [x] Criar testes para `scraper_decathlon.py`
+- [x] Criar testes para `scraper_growth.py`
+- [x] Criar testes para `check_and_mark()` em `main.py`
+- [x] Criar testes para `handle_message()` dispatch
 
 ### Documentacao
 - [x] Atualizar TODO.md (Fase 9 ja concluida)

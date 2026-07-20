@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS historico_precos (
     produto_id TEXT NOT NULL,
     preco REAL NOT NULL,
     data_coleta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (produto_id) REFERENCES ofertas(produto_id)
+    FOREIGN KEY (produto_id) REFERENCES ofertas(produto_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS ofertas_enviadas (
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS ofertas_enviadas (
     tipo TEXT NOT NULL,
     preco_enviado REAL,
     data_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (produto_id) REFERENCES ofertas(produto_id)
+    FOREIGN KEY (produto_id) REFERENCES ofertas(produto_id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_historico_produto ON historico_precos(produto_id);
