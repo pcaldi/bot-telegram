@@ -198,6 +198,15 @@ ML_AFFILIATE_TAG = os.getenv("ML_AFFILIATE_TAG", "pcaldi")
 # Scrapers desabilitados temporariamente (ex: ["decathlon", "procorrer"])
 SCRAPERS_DISABLED = []
 
+# Lojas permitidas por produto (vazio = todas)
+LOJAS_POR_PRODUTO = {
+    "fone_jbl": ["Amazon", "Mercado Livre"],
+    "fone_soundcore": ["Amazon", "Mercado Livre"],
+    "mouse_gamer": ["Amazon", "Mercado Livre"],
+    "ssd": ["Amazon", "Mercado Livre"],
+    "monitor": ["Amazon", "Mercado Livre"],
+}
+
 # Termos de busca específicos para Decathlon (só o que eles vendem)
 DECATHLON_TERMOS = {
     "nike air max": ["tênis corrida"],

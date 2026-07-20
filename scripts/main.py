@@ -12,7 +12,7 @@ from typing import Optional
 # Adiciona o diretório pai ao path para imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN, SCRAPERS_DISABLED
+from config import PRODUTOS_MONITORADOS, SCRAPE_CONFIG, TELEGRAM_BOT_TOKEN, SCRAPERS_DISABLED, LOJAS_POR_PRODUTO
 from scripts.scraper_amazon import AmazonScraper
 from scripts.scraper_procorrer import ProcorrerScraper
 from scripts.scraper_decathlon import DecathlonScraper
@@ -255,6 +255,20 @@ def _scrape_all() -> dict:
             + ml_results.get(termo, [])
             + pw_results.get(termo, [])
         )
+
+    # Filtra por lojas permitidas por produto
+    termo_to_produto_id = {}
+    for p in all_prods:
+        termo_to_produto_id[p["palavras_chave"][0]] = p["id"]
+
+    for termo in combined:
+        produto_id = termo_to_produto_id.get(termo)
+        lojas_permitidas = LOJAS_POR_PRODUTO.get(produto_id)
+        if lojas_permitidas:
+            combined[termo] = [
+                p for p in combined[termo]
+                if p.get("loja") in lojas_permitidas
+            ]
 
     # Log resumo
     total = sum(len(v) for v in combined.values())
