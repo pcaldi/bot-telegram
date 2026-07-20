@@ -197,3 +197,28 @@ ML_AFFILIATE_TAG = os.getenv("ML_AFFILIATE_TAG", "pcaldi")
 
 # Scrapers desabilitados temporariamente (ex: ["decathlon", "procorrer"])
 SCRAPERS_DISABLED = []
+
+# Termos de busca específicos para Decathlon (só o que eles vendem)
+DECATHLON_TERMOS = {
+    "nike air max": ["tênis corrida"],
+    "nike downshifter": ["tênis corrida"],
+    "adidas coreracer": ["tênis corrida"],
+    "tenis olympikus": ["tênis corrida"],
+    "asics superblast": ["tênis corrida"],
+    "asics superblast 2": ["tênis corrida"],
+    "adidas adizero": ["tênis corrida"],
+    "tênis corrida": ["tênis corrida"],
+    "nike corrida": ["tênis corrida"],
+    "whey protein": [],
+    "creatina": [],
+    "whey max": [],
+    "fone jbl": [],
+    "fone anker": [],
+    "mouse gamer": [],
+    "ssd 1tb": [],
+    "monitor 24": [],
+    "whey protein concentrado 1kg": [],
+    "creatina monohidratada 250g": [],
+    "kit whey creatina": [],
+    "fone bluetooth": [],
+}

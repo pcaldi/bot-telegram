@@ -92,15 +92,21 @@ try:
 '''
     elif scraper_name == "decathlon":
         script += '''
+    from config import DECATHLON_TERMOS
     from scripts.scraper_decathlon import DecathlonScraper
     scraper = DecathlonScraper()
     for termo in terms:
         resultados[termo] = []
-        try:
-            pm = term_to_preco_max.get(termo, 999999)
-            resultados[termo].extend(scraper.buscar(termo, pm)[:max_per])
-        except Exception as e:
-            log.warning("Decathlon falhou para '%s': %s", termo, e)
+        dc_terms = DECATHLON_TERMOS.get(termo, [])
+        if not dc_terms:
+            continue
+        for dc_termo in dc_terms:
+            try:
+                pm = term_to_preco_max.get(termo, 999999)
+                produtos = scraper.buscar(dc_termo, pm)
+                resultados[termo].extend(produtos[:max_per])
+            except Exception as e:
+                log.warning("Decathlon falhou para '%s': %s", dc_termo, e)
 '''
     elif scraper_name == "ml":
         script += '''
