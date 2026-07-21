@@ -247,6 +247,7 @@ def _scrape_all() -> dict:
 
     # Combina resultados
     combined = {}
+    ml_ofertas = ml_results.get("__ofertas__", [])
     for termo in unique_terms:
         combined[termo] = (
             amz_results.get(termo, [])
@@ -255,6 +256,9 @@ def _scrape_all() -> dict:
             + ml_results.get(termo, [])
             + pw_results.get(termo, [])
         )
+        # Adiciona ofertas gerais do ML (descontos maiores)
+        if ml_ofertas:
+            combined[termo].extend(ml_ofertas)
 
     # Filtra por lojas permitidas por produto
     termo_to_produto_id = {}
