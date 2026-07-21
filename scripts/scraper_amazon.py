@@ -30,6 +30,10 @@ class AmazonScraper(BaseScraper):
             dominio="amazon.com.br"
         )
         self.scraper = cloudscraper.create_scraper()
+        self.scraper.headers.update({
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        })
 
     def buscar(self, termo: str, max_preco: Optional[float] = None) -> list:
         """Busca produtos na Amazon.
