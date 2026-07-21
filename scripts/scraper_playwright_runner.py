@@ -113,27 +113,12 @@ try:
     from scripts.scraper_mercadolivre import MercadoLivreScraper
     scraper = MercadoLivreScraper()
 
-    # Busca por termo
-    unique_terms = list(dict.fromkeys(terms))
-    for termo in unique_terms:
-        resultados[termo] = []
-        try:
-            pm = term_to_preco_max.get(termo, 999999)
-            produtos = scraper.buscar(termo, pm)
-            resultados[termo].extend(produtos[:max_per])
-        except Exception as e:
-            log.warning("ML falhou para '%s': %s", termo, e)
-
-    # Busca na página de ofertas (descontos maiores)
+    # Busca na página de ofertas (descontos maiores, anti-bot mais permissivo)
     try:
-        scraper._bm.stop()
-        import time
-        time.sleep(2)
-        scraper._bm = __import__("scripts.browser_utils", fromlist=["BrowserManager"]).BrowserManager()
         ofertas = scraper.buscar_ofertas()
         if ofertas:
             resultados["__ofertas__"] = ofertas
-            log.info("ML ofertas: %d produtos encontrados na página de ofertas", len(ofertas))
+            log.info("ML ofertas: %d produtos encontrados", len(ofertas))
     except Exception as e:
         log.warning("ML ofertas falhou: %s", e)
 '''
