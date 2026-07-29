@@ -1,0 +1,15 @@
+[Unit]
+Description=Bot Telegram Ofertas
+After=network.target
+
+[Service]
+Type=simple
+User=paulo
+WorkingDirectory=/home/paulo/estudos/projetos/bot-telegram-ofertas
+ExecStart=/home/paulo/.pyenv/shims/python scripts/main.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
